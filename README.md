@@ -1,0 +1,1 @@
+server stuff for resistance
