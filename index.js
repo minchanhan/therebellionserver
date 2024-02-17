@@ -29,7 +29,7 @@ const generateRoomCode = () => {
 }
 
 var waitingLobbies = [] // array of lobbies
-var activeGames = []; // contains games
+var games = new Map();
 
 io.on("connection", (socket) => {
   // CONNECTION
@@ -49,22 +49,6 @@ io.on("connection", (socket) => {
     socket.data.capacity = capacity;
   });
 
-  const getIndexOfRoomInWaitingLobbies = (roomCode) => {
-    return waitingLobbies.findIndex(e => e.roomCode === roomCode);
-  }
-
-  socket.on("check_for_room", (roomCode) => { // from JoinRoom
-    const index = getIndexOfRoomInWaitingLobbies(roomCode);
-    if (index > -1) {
-      // waitingLobbies contains roomCode at index
-      socket.emit("room_with_code", {exists: true});
-      socket.data.roomCode = roomCode;
-      socket.data.roomWaitingLobbyIndex = index;
-    } else {
-      socket.emit("room_with_code", {exists: false});
-    }
-  });
-
   const newPlayer = (username) => {
     var player = new Player(
       username, // username
@@ -82,66 +66,49 @@ io.on("connection", (socket) => {
 
   socket.on("create_room", () => {
     // create room code
-    socket.data.roomCode = generateRoomCode();
     var data = socket.data;
     var player = newPlayer(data.username);
+    const roomCode = generateRoomCode();
+    socket.data.roomCode = roomCode;
 
+    socket.join(roomCode);
+
+    const game = new Game(roomCode, [player], data.capacity, false);
+    games.set(roomCode, game);
+    socket.emit("set_game_screen"); // UI change, moves user to game screen
     console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`);
-    socket.join(data.roomCode);
-
-    var lobby = {
-      roomCode: data.roomCode,
-      playerList: [player],
-      capacity: data.capacity,
-    }
-    waitingLobbies.push(lobby);
-    socket.data.roomWaitingLobbyIndex = waitingLobbies.length - 1;
-
-    socket.emit("set_game_start");
   });
 
-  socket.once("join_room", () => {
-    const data = socket.data;
-    var player = newPlayer(data.username);
+  socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
+    if (games.has(roomCode)) {
+      if (!games.get(roomCode).getHasStarted()) { // game hasn't started
+        socket.emit("room_with_code", { exists: true, reason: "" });
+        var data = socket.data;
+        var player = newPlayer(data.username);
+        socket.data.roomCode = roomCode;
+        socket.join(roomCode)
+        games.get(roomCode).addPlayer(player);
+        console.log(`User ${data.username} with id: ${socket.id} joined room ${data.roomCode}`);
 
-    console.log(`User ${data.username} with id: ${socket.id} joined room ${data.roomCode}`);
-    socket.join(data.roomCode);
-
-    if (waitingLobbies[data.roomWaitingLobbyIndex]) {
-      var playerList = waitingLobbies[data.roomWaitingLobbyIndex].playerList.length;
-      var cap = waitingLobbies[data.roomWaitingLobbyIndex].capacity;
-        if (playerList < 2) { // change to cap later
-          waitingLobbies[data.roomWaitingLobbyIndex].playerList.push(player);
-        } else {
-          // START THE GAME
-          var game = new Game(
-            data.roomCode, // roomCode
-            waitingLobbies[data.roomWaitingLobbyIndex].playerList, // Players
-            data.capacity, // capacity
-          );
-          
-          console.log("removing waitingLobbies");
-
-          waitingLobbies.splice(data.roomWaitingLobbyIndex, 1);
-          socket.emit("subtract", data.roomWaitingLobbyIndex);
-
+        var playerListLen = games.get(roomCode).getPlayers().length;
+        var cap = 2; // games.get(roomCode).getCapacity(); change later
+        if (playerListLen >= cap) {
+          // Reached capacity, START THE GAME
           console.log("game starting");
-          // start game once Arr[players] reaches capacity
+          games.get(roomCode).setHasStarted(true);
+
+        } else {
+          return;
         }
-    } 
-
-    socket.emit("set_game_start");
-  });
-
-  // Update room index in waitingLobbies (maybe just have the socket find the index when they need to)
-  socket.on("subtract", (removedIndex) => {
-    if (socket.data.roomWaitingLobbyIndex > removedIndex) {
-      socket.data.roomWaitingLobbyIndex -= 1;
+        socket.emit("set_game_screen");
+      } else {
+        socket.emit("room_with_code", { exists: false, reason: "Game has already started" });
+        return;
+      }
+    } else {
+      socket.emit("room_with_code", { exists: false, reason: "Room doesn't exist" });
+      return;
     }
-  });
-
-  socket.on("subtract_log", () => { // remove after test
-    console.log(`${socket.data.username}: `, socket.data.roomWaitingLobbyIndex);
   });
 
   // MESSAGES
@@ -151,11 +118,9 @@ io.on("connection", (socket) => {
   });
 
   // JUST FOR TESTING //
-  socket.on("checkLobby", () => { // on msg send
-    console.log("waiting room at the end of join room in server is: ", waitingLobbies);
+  socket.on("checkGames", () => { // on msg send
+    console.log("games looks like: ", games);
   })
-
-
 });
 
 server.listen(process.env.PORT, () => {

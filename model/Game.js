@@ -1,10 +1,29 @@
 class Game {
-  constructor(roomCode, players, capacity) {
+  constructor(roomCode, players, capacity, hasStarted) {
     this.roomCode = roomCode; // string
     this.players = players; // arr[Player]
 
     // room settings
     this.capacity = capacity // int
+    this.hasStarted = hasStarted // bool
+  }
+
+  addPlayer(player) {
+    this.players.push(player);
+  }
+  getPlayers () {
+    return this.players;
+  }
+
+  getCapacity () {
+    return this.capacity;
+  }
+
+  setHasStarted(hasStarted) {
+    this.hasStarted = hasStarted;
+  }
+  getHasStarted() {
+    return this.hasStarted;
   }
 
   startGame() {
