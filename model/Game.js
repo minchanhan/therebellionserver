@@ -6,25 +6,25 @@ class Game {
     // room settings
     this.capacity = capacity // int
     this.hasStarted = hasStarted // bool
-  }
+  };
 
   addPlayer(player) {
     this.players.push(player);
-  }
+  };
   getPlayers () {
     return this.players;
-  }
+  };
 
   getCapacity () {
     return this.capacity;
-  }
+  };
 
   setHasStarted(hasStarted) {
     this.hasStarted = hasStarted;
-  }
+  };
   getHasStarted() {
     return this.hasStarted;
-  }
+  };
 
   startGame() {
     // start game
@@ -40,7 +40,7 @@ class Game {
       const element = array[index];
       
     }
-  }
+  };
 }
 
 module.exports = Game;

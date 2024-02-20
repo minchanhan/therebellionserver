@@ -26,7 +26,7 @@ const io = new Server(server, { // for work with socket.io
 
 const generateRoomCode = () => {
   return Array.from(Array(5), () => Math.floor(Math.random() * 36).toString(36)).join('');
-}
+};
 
 var games = new Map();
 
@@ -37,7 +37,7 @@ io.on("connection", (socket) => {
   // DISCONNECT
   socket.on("disconnect", () => {
     console.log(`User Disconnected: ${socket.id}`);
-  })
+  });
 
   // DATA //
   socket.on("set_username", (username) => {
@@ -61,7 +61,7 @@ io.on("connection", (socket) => {
       false // isRevealed
     );
     return player;
-  }
+  };
 
   socket.on("create_room", () => {
     // create room code
@@ -119,7 +119,7 @@ io.on("connection", (socket) => {
   // JUST FOR TESTING //
   socket.on("checkGames", () => { // on msg send
     console.log("games looks like: ", games);
-  })
+  });
 });
 
 server.listen(process.env.PORT, () => {
