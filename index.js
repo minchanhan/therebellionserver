@@ -28,7 +28,6 @@ const generateRoomCode = () => {
   return Array.from(Array(5), () => Math.floor(Math.random() * 36).toString(36)).join('');
 }
 
-var waitingLobbies = [] // array of lobbies
 var games = new Map();
 
 io.on("connection", (socket) => {
