@@ -1,7 +1,7 @@
 const Team = Object.freeze({
-  Red: "spies",
-  Blue: "the resistance",
-  None: "none"
+  Bad: "badTeam",
+  Good: "goodTeam",
+  Unknown: ""
 });
 
 module.exports = Team;

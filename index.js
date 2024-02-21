@@ -48,12 +48,16 @@ io.on("connection", (socket) => {
     socket.data.capacity = capacity;
   });
 
+  socket.on("set_selection_time", (selectionTime) => { // from CreateRoom
+    socket.data.selectionTime = selectionTime;
+  });
+
   const newPlayer = (username) => {
     var player = new Player(
       username, // username
       socket.id, // id
 
-      Team.None, // team
+      Team.Unknown, // team
       false, // isLeader
       VoteStatus.None, // voteStatus
       false, // onMission
@@ -72,34 +76,64 @@ io.on("connection", (socket) => {
 
     socket.join(roomCode);
 
-    const game = new Game(roomCode, [player], data.capacity, false);
+    const game = new Game(roomCode, [player], data.capacity, data.selectionTime, false);
     games.set(roomCode, game);
-    socket.emit("set_game_screen"); // UI change, moves user to game screen
+
     console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`);
+    io.to(roomCode).emit("player_joined_lobby", { playerLobby: [player], numPlayers: data.capacity });
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
     if (games.has(roomCode)) {
       if (!games.get(roomCode).getHasStarted()) { // game hasn't started
         socket.emit("room_with_code", { exists: true, reason: "" });
+
         var data = socket.data;
         var player = newPlayer(data.username);
+
         socket.data.roomCode = roomCode;
         socket.join(roomCode)
-        games.get(roomCode).addPlayer(player);
+
+        var game = games.get(roomCode)
+        game.addPlayer(player);
+        const cap = game.getCapacity();
+
         console.log(`User ${data.username} with id: ${socket.id} joined room ${data.roomCode}`);
 
-        var playerListLen = games.get(roomCode).getPlayers().length;
-        var cap = 2; // games.get(roomCode).getCapacity(); change later
+
+
+        console.log("PLAYERLIST IS: ", game.getPlayers())
+
+        io.to(roomCode).emit("player_joined_lobby", { playerLobby: game.getPlayers(), numPlayers: cap });
+
+        var playerListLen = game.getPlayers().length;
         if (playerListLen >= cap) {
           // Reached capacity, START THE GAME
+          // GAME LOGIC BEGINS HERE
           console.log("game starting");
-          games.get(roomCode).setHasStarted(true);
+          game.setHasStarted(true);          
 
-        } else {
-          return;
+          // Step 1: Randomize, randomize seats
+          game.randomizeSeatAndTeam();
+
+          for (let i = 0; i < cap; i++) {
+            if (game.getPlayerTeam(i) === Team.Good) {
+              io.to(game.getPlayerId(i)).emit("team_set", { team: Team.Good, seatNumber: i }); // send to frontend of specific player
+            } else {
+              io.to(game.getPlayerId(i)).emit("team_set", { team: Team.Bad, seatNumber: i });
+            }
+          }
+
+          // send out information to specific ids
+          // for all the bad payers
+          // socket.to(player.id)
+          // you're bad so you can see the bad people
+
+          // for all the good players
+          // socket.to(player.id)
+          // you're good so everything will be covered for you
+
         }
-        socket.emit("set_game_screen");
       } else {
         socket.emit("room_with_code", { exists: false, reason: "Game has already started" });
         return;
@@ -118,7 +152,7 @@ io.on("connection", (socket) => {
 
   // JUST FOR TESTING //
   socket.on("checkGames", () => { // on msg send
-    console.log("games looks like: ", games);
+    console.log("games looks like: ", games.get(socket.data.roomCode).getPlayers());
   });
 });
 

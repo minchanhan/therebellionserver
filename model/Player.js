@@ -11,7 +11,7 @@ class Player {
   ) {
     this.username = username; // string
     this.id = id; // string
-    this.team = team; // string: resistance / spy
+    this.team = team; // enum: Good | Bad | Unknown
     this.isLeader = isLeader; // bool
     this.voteStatus = voteStatus; // enum: none | appr | notAppr
     this.onMission = onMission; // enum: none | yes | no
@@ -19,7 +19,11 @@ class Player {
     this.isRevealed = isRevealed; // bool
   }
 
-  setTeam() {
+  getId() {
+    return this.id;
+  }
+
+  setTeam(team) {
     this.team = team;
   }
   getTeam() {
