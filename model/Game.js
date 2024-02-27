@@ -11,7 +11,7 @@ class Game {
     this.hasStarted = hasStarted // bool
 
     // game logic
-    this.seatOrder = new Map();
+    this.seats = []; // arr[[player.username, team]]
     this.numSpies = this.capacity < 7 ? 2 :
                       this.capacity < 10 ? 3 : 4
   };
@@ -22,9 +22,19 @@ class Game {
   getPlayers() {
     return this.players;
   };
-
   getPlayerId(index) {
     return this.players[index].getId();
+  }
+  getPlayerUsername(index) {
+    return this.players[index].getUsername();
+  }
+  getPlayerByUsername(username, cap) {
+    console.log("getPlayerByUsername called with: ", username, cap);
+    for (let i = 0; i < cap; i++) {
+      if (this.getPlayerUsername(i) === username) {
+        return this.getPlayers()[i];
+      }
+    }
   }
 
   getPlayerTeam(index) {
@@ -56,8 +66,15 @@ class Game {
     return this.hasStarted;
   };
 
-  setSeatOrder(seatNum, player) {
-    this.seatOrder.set(seatNum, player);
+  getSeats() {
+    return this.seats;
+  }
+  setSeat(player, team) { // username and team only
+    console.log("pushing in: ", [player.username, team]);
+    this.seats.push([player.username, team]); // keeps order of players with team
+  }
+  clearSeats() {
+    this.seats = [];
   }
 
   // Helpers
@@ -78,38 +95,64 @@ class Game {
 
   // Step 1
   randomizeSeatAndTeam() {
-    this.shuffle(this.getPlayers());
+    this.clearSeats();
     const goodTeamArr = this.fillArray(Team.Good, this.getCapacity() - this.getNumSpies());
     const badTeamArr = this.fillArray(Team.Bad, this.getNumSpies());
     var teamArr = goodTeamArr.concat(badTeamArr);
     this.shuffle(teamArr);
+    this.shuffle(this.getPlayers());
 
-    for (let i = 0; i < 3; i++) { // just for testing, change to capacity later
+    for (let i = 0; i < this.getCapacity(); i++) {
       this.setPlayerTeam(teamArr[i], i);
-      this.setSeatOrder(i, this.getPlayers()[i]);
+      this.setSeat(this.getPlayers()[i], teamArr[i]);
     }
-    console.log(this.seatOrder);
   }
 
+  sendSeatingInfo(io) { // this will be the socket of the last joined player
+    const seats = this.getSeats();
+    const cap = this.getCapacity();
 
-  
-  startGame() {
+    console.log("seats before: ", seats);
+
+    var coveredSeats = JSON.parse(JSON.stringify(seats)); ; // deep copy of seats, team will be covered
+    for (let i = 0; i < cap; i++) {
+      coveredSeats[i][1] = Team.Unknown;
+    }
+
+    console.log("coveredSeats after: ", coveredSeats);
+    console.log("seats after: ", seats);
+
+    for (let i = 0; i < cap; i++) {
+      const player = this.getPlayerByUsername(seats[i][0], cap);
+      console.log(`player${i}'s team = bad?`, player.getTeam() === Team.Bad);
+      if (player.getTeam() === Team.Bad) {
+        console.log("bad team, so sending seats: ", seats);
+        io.to(player.getId()).emit("shuffled_seats", seats);
+      } else {
+        io.to(player.getId()).emit("shuffled_seats", coveredSeats);
+      }
+    }
+  }
+
+  startGame(game, io) {
     // start game
+    game.setHasStarted(true);
 
     // randomize teams
+    console.log("Game is starting, about to randomize seat and teams");
+    game.randomizeSeatAndTeam();
+    game.sendSeatingInfo(io);
 
     // randomize leader
 
-
     // start mission 1
 
+    /*
     for (let index = 0; index < 5; index++) {
       const element = array[index];
       
-    }
+    } */
   };
-
-
 }
 
 module.exports = Game;

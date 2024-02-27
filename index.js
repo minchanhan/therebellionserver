@@ -28,8 +28,10 @@ const generateRoomCode = () => {
   return Array.from(Array(5), () => Math.floor(Math.random() * 36).toString(36)).join('');
 };
 
+/* CRUCIAL */
 var games = new Map();
 
+// SOCKET SETUP //
 io.on("connection", (socket) => {
   // CONNECTION
   console.log(`User Connected: ${socket.id}`);
@@ -67,6 +69,7 @@ io.on("connection", (socket) => {
     return player;
   };
 
+  // ROOMS //
   socket.on("create_room", () => {
     // create room code
     var data = socket.data;
@@ -78,61 +81,37 @@ io.on("connection", (socket) => {
 
     const game = new Game(roomCode, [player], data.capacity, data.selectionTime, false);
     games.set(roomCode, game);
+    game.setSeat(player, Team.Unknown);
 
     console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`);
-    io.to(roomCode).emit("player_joined_lobby", { playerLobby: [player], numPlayers: data.capacity });
+    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: data.capacity });
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
     if (games.has(roomCode)) {
       if (!games.get(roomCode).getHasStarted()) { // game hasn't started
         socket.emit("room_with_code", { exists: true, reason: "" });
-
-        var data = socket.data;
-        var player = newPlayer(data.username);
-
         socket.data.roomCode = roomCode;
         socket.join(roomCode)
 
-        var game = games.get(roomCode)
-        game.addPlayer(player);
+        var data = socket.data;
+        var player = newPlayer(data.username);
+        var game = games.get(roomCode);
         const cap = game.getCapacity();
 
+        game.addPlayer(player);
         console.log(`User ${data.username} with id: ${socket.id} joined room ${data.roomCode}`);
 
+        game.setSeat(player, Team.Unknown);
+        
+        io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: cap });
 
+        var curNumPlayers = game.getPlayers().length;
 
-        console.log("PLAYERLIST IS: ", game.getPlayers())
-
-        io.to(roomCode).emit("player_joined_lobby", { playerLobby: game.getPlayers(), numPlayers: cap });
-
-        var playerListLen = game.getPlayers().length;
-        if (playerListLen >= cap) {
+        if (curNumPlayers >= cap) {
           // Reached capacity, START THE GAME
           // GAME LOGIC BEGINS HERE
-          console.log("game starting");
-          game.setHasStarted(true);          
-
-          // Step 1: Randomize, randomize seats
-          game.randomizeSeatAndTeam();
-
-          for (let i = 0; i < cap; i++) {
-            if (game.getPlayerTeam(i) === Team.Good) {
-              io.to(game.getPlayerId(i)).emit("team_set", { team: Team.Good, seatNumber: i }); // send to frontend of specific player
-            } else {
-              io.to(game.getPlayerId(i)).emit("team_set", { team: Team.Bad, seatNumber: i });
-            }
-          }
-
-          // send out information to specific ids
-          // for all the bad payers
-          // socket.to(player.id)
-          // you're bad so you can see the bad people
-
-          // for all the good players
-          // socket.to(player.id)
-          // you're good so everything will be covered for you
-
+          game.startGame(game, io);
         }
       } else {
         socket.emit("room_with_code", { exists: false, reason: "Game has already started" });

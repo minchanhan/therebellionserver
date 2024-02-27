@@ -19,6 +19,9 @@ class Player {
     this.isRevealed = isRevealed; // bool
   }
 
+  getUsername() {
+    return this.username;
+  }
   getId() {
     return this.id;
   }
