@@ -29,7 +29,6 @@ class Game {
     return this.players[index].getUsername();
   }
   getPlayerByUsername(username, cap) {
-    console.log("getPlayerByUsername called with: ", username, cap);
     for (let i = 0; i < cap; i++) {
       if (this.getPlayerUsername(i) === username) {
         return this.getPlayers()[i];
@@ -70,7 +69,6 @@ class Game {
     return this.seats;
   }
   setSeat(player, team) { // username and team only
-    console.log("pushing in: ", [player.username, team]);
     this.seats.push([player.username, team]); // keeps order of players with team
   }
   clearSeats() {
@@ -112,21 +110,14 @@ class Game {
     const seats = this.getSeats();
     const cap = this.getCapacity();
 
-    console.log("seats before: ", seats);
-
     var coveredSeats = JSON.parse(JSON.stringify(seats)); ; // deep copy of seats, team will be covered
     for (let i = 0; i < cap; i++) {
       coveredSeats[i][1] = Team.Unknown;
     }
 
-    console.log("coveredSeats after: ", coveredSeats);
-    console.log("seats after: ", seats);
-
     for (let i = 0; i < cap; i++) {
       const player = this.getPlayerByUsername(seats[i][0], cap);
-      console.log(`player${i}'s team = bad?`, player.getTeam() === Team.Bad);
       if (player.getTeam() === Team.Bad) {
-        console.log("bad team, so sending seats: ", seats);
         io.to(player.getId()).emit("shuffled_seats", seats);
       } else {
         io.to(player.getId()).emit("shuffled_seats", coveredSeats);
