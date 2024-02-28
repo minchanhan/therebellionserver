@@ -150,6 +150,10 @@ class Game {
     }
   }
 
+  gameMasterSpeech(game, io, speech) {
+    io.to(game.getRoomCode()).emit("game_master_speech", speech); 
+  }
+
   startGame(game, io) {
     // start game
     game.setHasStarted(true);
@@ -175,11 +179,8 @@ class Game {
     console.log("welcome message: ", welcomeMsg);
     console.log("playerList: ", game.getPlayers());
 
-    /*
-    for (let index = 0; index < 5; index++) {
-      const element = array[index];
-      
-    } */
+    game.gameMasterSpeech(game, io, welcomeMsg);
+
   };
 }
 
