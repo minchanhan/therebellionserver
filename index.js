@@ -103,7 +103,7 @@ io.on("connection", (socket) => {
     game.setSeat(player, Team.Unknown);
 
     console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`);
-    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: data.capacity });
+    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: data.capacity, room: data.roomCode });
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
@@ -123,7 +123,7 @@ io.on("connection", (socket) => {
 
         game.setSeat(player, Team.Unknown);
         
-        io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: cap });
+        io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: cap, room: roomCode });
 
         var curNumPlayers = game.getPlayers().length;
 
