@@ -12,7 +12,7 @@ class Game {
 
     // game logic
     this.mission = 0; // int, the mission/round game is on
-    this.seats = []; // arr[[player.username, team]]
+    this.seats = []; // arr[[player.username, team, isLeader, onMission]]
     this.numSpies = this.capacity < 7 ? 2 :
                       this.capacity < 10 ? 3 : 4
   };
@@ -57,8 +57,10 @@ class Game {
   setPlayerTeam(team, index) {
     this.players[index].setTeam(team);
   }
-  setLeader(leader, isLeader) {
+
+  setLeader(leader, leaderIndex, isLeader) {
     leader.setIsLeader(isLeader);
+    this.seats[leaderIndex][2] = true;
   }
 
   getCapacity() {
@@ -86,8 +88,8 @@ class Game {
   getSeats() {
     return this.seats;
   }
-  setSeat(player, team) { // username and team only
-    this.seats.push([player.getUsername(), team]); // keeps order of players with team
+  setSeat(player, team, isLeader, onMission) { // username and team only (ADDS SEAT, DOESN'T ALTER IT)
+    this.seats.push([player.getUsername(), team, isLeader, onMission]); // keeps order of players with team
   }
   clearSeats() {
     this.seats = [];
@@ -127,7 +129,7 @@ class Game {
 
     for (let i = 0; i < this.getCapacity(); i++) {
       this.setPlayerTeam(teamArr[i], i);
-      this.setSeat(this.getPlayers()[i], teamArr[i]);
+      this.setSeat(this.getPlayers()[i], teamArr[i], false, false);
     }
   }
 
@@ -151,7 +153,7 @@ class Game {
   }
 
   gameMasterSpeech(game, io, speech) {
-    io.to(game.getRoomCode()).emit("game_master_speech", speech); 
+    io.to(game.getRoomCode()).emit("game_master_speech", speech);
   }
 
   startGame(game, io) {
@@ -168,18 +170,27 @@ class Game {
     console.log("leaderindex: ", leaderIndex);
     const leader = game.getPlayers()[leaderIndex];
     console.log("leader is: ", leader);
-    game.setLeader(leader, true);
+    game.setLeader(leader, leaderIndex, true); // also changes this.seats
+    game.sendSeatingInfo(io);
+    console.log("leader is: ", leader);
+    console.log(game.seats[leaderIndex]);
 
     // start missions
     const welcomeMsg = `Welcome soldiers, I am Captain X, thank you for joining the resistance. \
     We are well on our way to overthrow the capital. However, I am aware of ${game.getNumSpies()} spies among us.. \
     Please beware and smoke them out. For now, we start our first mission. I am appointing ${leader.getUsername()} as the leader. \
     ${leader.getUsername()}, please choose the members for mission ${game.getMission()}`;
-
-    console.log("welcome message: ", welcomeMsg);
-    console.log("playerList: ", game.getPlayers());
-
     game.gameMasterSpeech(game, io, welcomeMsg);
+
+    // set timer
+    // give leader powers, assign it the start
+
+    /* assign new leader
+    game.setLeader(oldLeader, true);
+    game.setLeader(leader, true);
+    game.sendSeatingInfo(io);
+    */
+
 
   };
 }

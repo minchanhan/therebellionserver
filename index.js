@@ -101,7 +101,7 @@ io.on("connection", (socket) => {
 
     const game = new Game(roomCode, [player], data.capacity, data.selectionTime, false);
     games.set(roomCode, game);
-    game.setSeat(player, Team.Unknown);
+    game.setSeat(player, Team.Unknown, false, false);
 
     console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`);
     io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: data.capacity, room: data.roomCode });
@@ -122,7 +122,7 @@ io.on("connection", (socket) => {
         game.addPlayer(player);
         console.log(`User ${data.username} with id: ${socket.id} joined room ${data.roomCode}`);
 
-        game.setSeat(player, Team.Unknown);
+        game.setSeat(player, Team.Unknown, false, false);
         
         io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: cap, room: roomCode });
 
