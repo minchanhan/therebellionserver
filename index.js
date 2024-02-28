@@ -40,6 +40,7 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log(`User Disconnected: ${socket.id}`);
     if (games.size === 0) return;
+    if (socket.data.roomCode == null) return;
 
     const roomCode = socket.data.roomCode;
 
