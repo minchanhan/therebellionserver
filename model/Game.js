@@ -19,6 +19,16 @@ class Game {
   addPlayer(player) {
     this.players.push(player);
   };
+  removePlayer(removedId) { // to be used if player leaves waiting lobby
+    for (let i = 0; i < this.players.length; i++) {
+      if (this.getPlayerId(i) === removedId) {
+        this.players.splice(i, 1);
+        this.seats.splice(i, 1);
+      }
+    }
+    console.log("new player list is: ", this.players);
+    console.log("new seats list is: ", this.seats);
+  }
   getPlayers() {
     return this.players;
   };

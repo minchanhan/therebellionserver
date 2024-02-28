@@ -39,6 +39,24 @@ io.on("connection", (socket) => {
   // DISCONNECT
   socket.on("disconnect", () => {
     console.log(`User Disconnected: ${socket.id}`);
+    if (games.size === 0) return;
+
+    const roomCode = socket.data.roomCode;
+
+    var game = games.get(roomCode);
+    if (game.hasStarted) {
+      io.to(roomCode).emit("set_game_end", game.seats); // pass in full list of players
+      games.delete(roomCode);
+    } else {
+      if (game.getPlayers().length <= 1) {
+        games.delete(roomCode); // no emit needed, there'll be nothing left
+      } else {
+        game.removePlayer(socket.id); // remove one player
+        io.to(roomCode).emit("player_left_lobby", game.getSeats());
+      }
+    }
+
+    console.log("games: ", games);
   });
 
   // DATA //
