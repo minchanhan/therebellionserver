@@ -57,6 +57,9 @@ class Game {
   setPlayerTeam(team, index) {
     this.players[index].setTeam(team);
   }
+  setLeader(leader, isLeader) {
+    leader.setIsLeader(isLeader);
+  }
 
   getCapacity() {
     return this.capacity;
@@ -157,15 +160,20 @@ class Game {
     game.sendSeatingInfo(io);
 
     // randomize leader
+    var leaderIndex = Math.floor(Math.random() * game.getCapacity()); // range 0 to (cap - 1)
+    console.log("leaderindex: ", leaderIndex);
+    const leader = game.getPlayers()[leaderIndex];
+    console.log("leader is: ", leader);
+    game.setLeader(leader, true);
+
     // start missions
-    
     const welcomeMsg = `Welcome soldiers, I am Captain X, thank you for joining the resistance. \
-    I am aware of ${game.getNumSpies()} among us.. please beware and smoke them out. For now, \
-    we start our first mission. I am appointing {leader} as the leader. \
-    {leader}, please choose the members for mission {mission}`;
+    We are well on our way to overthrow the capital. However, I am aware of ${game.getNumSpies()} spies among us.. \
+    Please beware and smoke them out. For now, we start our first mission. I am appointing ${leader.getUsername()} as the leader. \
+    ${leader.getUsername()}, please choose the members for mission ${game.getMission()}`;
 
-
-
+    console.log("welcome message: ", welcomeMsg);
+    console.log("playerList: ", game.getPlayers());
 
     /*
     for (let index = 0; index < 5; index++) {

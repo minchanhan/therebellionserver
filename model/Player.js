@@ -36,7 +36,7 @@ class Player {
   getIsLeader() {
     return this.isLeader;
   }
-  setIsLeader() {
+  setIsLeader(isLeader) {
     this.isLeader = isLeader;
   }
   
