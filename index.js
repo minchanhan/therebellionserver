@@ -45,8 +45,8 @@ io.on("connection", (socket) => {
     const roomCode = socket.data.roomCode;
 
     var game = games.get(roomCode);
-    if (game.hasStarted) {
-      io.to(roomCode).emit("set_game_end", game.seats); // pass in full list of players
+    if (game.getHasStarted()) {
+      io.to(roomCode).emit("set_game_end", game.getSeats()); // pass in full list of players
       games.delete(roomCode);
     } else {
       if (game.getPlayers().length <= 1) {

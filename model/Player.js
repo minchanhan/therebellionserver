@@ -26,46 +26,46 @@ class Player {
     return this.id;
   }
 
-  setTeam(team) {
-    this.team = team;
-  }
   getTeam() {
     return this.team;
   }
-
-  setIsLeader() {
-    this.isLeader = isLeader;
+  setTeam(team) {
+    this.team = team;
   }
+  
   getIsLeader() {
     return this.isLeader;
   }
-  
-  setVoteStatus() {
-    this.voteStatus = voteStatus;
+  setIsLeader() {
+    this.isLeader = isLeader;
   }
+  
   getVoteStatus() {
     return this.voteStatus;
   }
-
-  setOnMission() {
-    this.onMission = onMission;
+  setVoteStatus() {
+    this.voteStatus = voteStatus;
   }
+  
   getOnMission() {
     return this.onMission;
   }
-
-  setPlotCards() {
-    this.PlotCards = plotCards;
+  setOnMission() {
+    this.onMission = onMission;
   }
+  
   getPlotCards() {
     return this.PlotCards;
   }
-
-  setIsRevealed() {
-    this.IsRevealed = isRevealed;
+  setPlotCards() {
+    this.PlotCards = plotCards;
   }
+  
   getIsRevealed() {
     return this.IsRevealed;
+  }
+  setIsRevealed() {
+    this.IsRevealed = isRevealed;
   }
 }
 

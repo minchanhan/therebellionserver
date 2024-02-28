@@ -11,10 +11,16 @@ class Game {
     this.hasStarted = hasStarted // bool
 
     // game logic
+    this.mission = 0; // int, the mission/round game is on
     this.seats = []; // arr[[player.username, team]]
     this.numSpies = this.capacity < 7 ? 2 :
                       this.capacity < 10 ? 3 : 4
   };
+
+  /* Properties */
+  getRoomCode() {
+    return this.roomCode;
+  }
 
   addPlayer(player) {
     this.players.push(player);
@@ -45,7 +51,6 @@ class Game {
       }
     }
   }
-
   getPlayerTeam(index) {
     return this.players[index].getTeam();
   }
@@ -57,35 +62,42 @@ class Game {
     return this.capacity;
   };
 
-  setNumSpies(numSpies) {
-    this.numSpies = numSpies;
-  }
-  getNumSpies() {
-    return this.numSpies;
-  }
-
   getSelectionTime() {
     return this.selectionTime;
   }
 
-  setHasStarted(hasStarted) {
-    this.hasStarted = hasStarted;
-  };
   getHasStarted() {
     return this.hasStarted;
   };
+  setHasStarted(hasStarted) {
+    this.hasStarted = hasStarted;
+  };
+
+  getMission() {
+    return this.mission;
+  }
+  setMission(mission) {
+    this.mission = mission;
+  }
 
   getSeats() {
     return this.seats;
   }
   setSeat(player, team) { // username and team only
-    this.seats.push([player.username, team]); // keeps order of players with team
+    this.seats.push([player.getUsername(), team]); // keeps order of players with team
   }
   clearSeats() {
     this.seats = [];
   }
 
-  // Helpers
+  getNumSpies() {
+    return this.numSpies;
+  }
+  setNumSpies(numSpies) {
+    this.numSpies = numSpies;
+  }
+  
+  /* Helpers */
   shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -101,7 +113,7 @@ class Game {
     return arr;
   }
 
-  // Step 1
+  /* Game Logic */
   randomizeSeatAndTeam() {
     this.clearSeats();
     const goodTeamArr = this.fillArray(Team.Good, this.getCapacity() - this.getNumSpies());
@@ -145,8 +157,15 @@ class Game {
     game.sendSeatingInfo(io);
 
     // randomize leader
+    // start missions
+    
+    const welcomeMsg = `Welcome soldiers, I am Captain X, thank you for joining the resistance. \
+    I am aware of ${game.getNumSpies()} among us.. please beware and smoke them out. For now, \
+    we start our first mission. I am appointing {leader} as the leader. \
+    {leader}, please choose the members for mission {mission}`;
 
-    // start mission 1
+
+
 
     /*
     for (let index = 0; index < 5; index++) {
