@@ -137,7 +137,7 @@ class Game {
     const seats = this.getSeats();
     const cap = this.getCapacity();
 
-    var coveredSeats = JSON.parse(JSON.stringify(seats)); ; // deep copy of seats, team will be covered
+    var coveredSeats = JSON.parse(JSON.stringify(seats)); // deep copy of seats, team will be covered
     for (let i = 0; i < cap; i++) {
       coveredSeats[i][1] = Team.Unknown;
     }
@@ -156,6 +156,10 @@ class Game {
     io.to(game.getRoomCode()).emit("game_master_speech", speech);
   }
 
+  letLeaderSelect(io, leaderId) {
+    io.to(leaderId).emit("leader_is_selecting", true);
+  }
+
   startGame(game, io) {
     // start game
     game.setHasStarted(true);
@@ -168,7 +172,7 @@ class Game {
     // randomize leader
     var leaderIndex = Math.floor(Math.random() * game.getCapacity()); // range 0 to (cap - 1)
     console.log("leaderindex: ", leaderIndex);
-    const leader = game.getPlayers()[leaderIndex];
+    var leader = game.getPlayers()[leaderIndex];
     console.log("leader is: ", leader);
     game.setLeader(leader, leaderIndex, true); // also changes this.seats
     game.sendSeatingInfo(io);
@@ -184,6 +188,8 @@ class Game {
 
     // set timer
     // give leader powers, assign it the start
+    game.letLeaderSelect(io, leader.getId());
+
 
     /* assign new leader
     game.setLeader(oldLeader, true);
