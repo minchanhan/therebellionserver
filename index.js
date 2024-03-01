@@ -179,12 +179,13 @@ io.on("connection", (socket) => {
 
     if ((approvals + disapprovals) === game.getCapacity()) {
       console.log("all votes are in");
-      // announce vote, commence mission
+      // announce vote
       const voteApproved = (approvals - disapprovals) > 0;
       console.log("vote approved?: ", voteApproved);
       io.in(info.room).emit("vote_result", voteApproved);
 
       if (voteApproved) {
+        // commence mission
         game.setCurMissionVoteDisapproves(0);
         const startMissionSpeech = `The vote has been approved, we begin our mission now. 
         ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)} please
