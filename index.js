@@ -149,6 +149,22 @@ io.on("connection", (socket) => {
     socket.to(socket.data.roomCode).emit("receive_msg", msgData);
   });
 
+  // GAMEPLAY
+  socket.on("selected_players_for_vote", (info) => {
+    const cap = games.get(info.room).getCapacity();
+    var seats = games.get(info.room).getSeats();
+    console.log(info);
+
+    for (let i = 0; i < cap; i++) {
+      if (info.selectedPlayers.includes(seats[i][0])) {
+        seats[i][3] = true;
+      } else {
+        seats[i][3] = false;
+      }
+    }
+    socket.to(socket.data.roomCode).emit("vote_on_these_players", seats);
+  });
+
   // JUST FOR TESTING //
   socket.on("checkGames", () => { // on msg send
     console.log("games looks like: ", games.get(socket.data.roomCode).getPlayers());
