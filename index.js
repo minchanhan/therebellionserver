@@ -151,18 +151,91 @@ io.on("connection", (socket) => {
 
   // GAMEPLAY
   socket.on("selected_players_for_vote", (info) => {
-    const cap = games.get(info.room).getCapacity();
-    var seats = games.get(info.room).getSeats();
-    console.log(info);
+    const game = games.get(info.room);
+    const cap = game.getCapacity();
+    var seats = game.getSeats();
 
-    for (let i = 0; i < cap; i++) {
+    for (let i = 0; i < cap; i++) { // assigns onMission to seats
       if (info.selectedPlayers.includes(seats[i][0])) {
         seats[i][3] = true;
       } else {
         seats[i][3] = false;
       }
     }
-    socket.to(socket.data.roomCode).emit("vote_on_these_players", seats);
+
+    game.sendSeatingInfo(io);
+    io.in(socket.data.roomCode).emit("vote_on_these_players", { selectedPlayers: info.selectedPlayers });
+    
+    game.handleVote(game, io, info.selectedPlayers);
+  });
+
+  socket.on("vote_is_in", (info) => {
+    console.log("info room: ", info.room);
+    const game = games.get(info.room);
+    game.setCurVoteTally(info.approve);
+
+    const approvals = game.getCurVoteTally()[0];
+    const disapprovals = game.getCurVoteTally()[1];
+
+    if ((approvals + disapprovals) === game.getCapacity()) {
+      console.log("all votes are in");
+      // announce vote, commence mission
+      const voteApproved = (approvals - disapprovals) > 0;
+      console.log("vote approved?: ", voteApproved);
+      io.in(info.room).emit("vote_result", voteApproved);
+
+      if (voteApproved) {
+        game.setCurMissionVoteDisapproves(0);
+        const startMissionSpeech = `The vote has been approved, we begin our mission now. 
+        ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)} please
+        make a decision, PASS or FAIL this mission. (Resistance members must choose pass...)`;
+        game.gameMasterSpeech(game, io, startMissionSpeech);
+      } else {
+        game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
+        if (game.getCurMissionVoteDisapproves() > 5) {
+          // handle game loss
+          return;
+        }
+        const revoteSpeech = `I see, you do not trust ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)}
+        to go on this mission. `;
+        game.changeLeader(game, io, revoteSpeech);
+      }
+      console.log("emitted vote approved to roomcode: ", info.room);
+
+      // clean
+      game.clearCurVoteTally();
+      return;
+    }
+  });
+
+  socket.on("mission_result_is_in", (info) => {
+    const game = games.get(info.room);
+    const passes = game.getMissionResult()[0];
+    const fails = game.getMissionResult()[1];
+    if (passes + fails === 3) { // CHANGE TO NUMBER OF PEOPLE ON MISSIONS
+      // announce mission results
+      const missionPassed = fails === 0; // unless needs 2 fails to fail
+      game.addMission();
+      missionPassed ? game.addMissionPasses() : game.addMissionFails();
+
+      if (game.getMissionPasses() === 3) {
+        // game over, resistance wins
+      } else if (game.getMissionFails() === 3) {
+        // game over, resistance loses
+      }
+
+      // If still going, then keep going with mission
+      io.in(info.room).emit("mission_completed");
+
+      const missionResultSpeech = missionPassed ? `Well done my soliders. We have passed the mission successfully. We have \
+      ${3 - game.getMissionPasses} left before we complete the overthrowing.` : `This isn't good... we have failed our mission... \
+      ${game.getMissionFails()} more failed missions and our plans overthrowing is ruined. `;
+
+      // change leader
+      game.changeLeader(game, io, missionResultSpeech);
+    } else {
+      game.setMissionResult(info.pass);
+    }
   });
 
   // JUST FOR TESTING //

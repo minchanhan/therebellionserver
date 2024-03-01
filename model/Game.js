@@ -11,10 +11,17 @@ class Game {
     this.hasStarted = hasStarted // bool
 
     // game logic
-    this.mission = 0; // int, the mission/round game is on
+    this.leaderIndex = 0; // int, to help Game helpers
+    this.mission = 1; // int, the mission/round game is on
+    this.curVoteTally = [0, 0]; // [int: approvals, int: disapprovals]
+    this.missionResult = [0, 0]; // [int: passes, int: fails]
     this.seats = []; // arr[[player.username, team, isLeader, onMission]]
     this.numSpies = this.capacity < 7 ? 2 :
-                      this.capacity < 10 ? 3 : 4
+                      this.capacity < 10 ? 3 : 4;
+    this.missionPasses = 0; // int
+    this.missionFails = 0; // int
+
+    this.curMissionVoteDisapproves = 0;
   };
 
   /* Properties */
@@ -58,9 +65,15 @@ class Game {
     this.players[index].setTeam(team);
   }
 
-  setLeader(leader, leaderIndex, isLeader) {
+  setLeader(leader, leaderIndex, isLeader) { // seat change
     leader.setIsLeader(isLeader);
-    this.seats[leaderIndex][2] = true;
+    for (let i = 0; i < this.capacity; i++) {
+      if (i === leaderIndex) {
+        this.seats[i][2] = true;
+      } else {
+        this.seats[i][2] = false;
+      }
+    }
   }
 
   getCapacity() {
@@ -78,11 +91,51 @@ class Game {
     this.hasStarted = hasStarted;
   };
 
+  getLeaderIndex() {
+    return this.leaderIndex;
+  }
+  setLeaderIndex(newLeaderIndex) {
+    this.leaderIndex = newLeaderIndex;
+  }
+  changeLeaderIndex() {
+    if ((this.leaderIndex + 1) === this.capacity) {
+      this.leaderIndex = 0;
+    } else {
+      this.leaderIndex += 1;
+    }
+  }
+
   getMission() {
     return this.mission;
   }
-  setMission(mission) {
-    this.mission = mission;
+  addMission() {
+    this.mission += 1;
+  }
+
+  getCurVoteTally() {
+    return this.curVoteTally;
+  }
+  setCurVoteTally(approve) {
+    approve ? this.curVoteTally[0] += 1 : this.curVoteTally[1] += 1;
+  }
+  clearCurVoteTally() {
+    this.curVoteTally = [0, 0];
+  }
+
+  getMissionResult() {
+    return this.missionResult;
+  }
+  setMissionResult(pass) {
+    pass ? this.missionResult[0] += 1 : this.missionResult[1] += 1;
+  }
+  clearMissionResult() {
+    this.missionResult = [0, 0];
+  }
+
+  clearOnMission() { // seat change
+    for (let i = 0; i < this.capacity; i++) {
+      this.seats[i][3] = false;
+    }
   }
 
   getSeats() {
@@ -101,6 +154,27 @@ class Game {
   setNumSpies(numSpies) {
     this.numSpies = numSpies;
   }
+
+  getMissionPasses() {
+    return this.missionPasses;
+  }
+  addMissionPasses() {
+    this.missionPasses += 1;
+  }
+
+  getMissionFails() {
+    return this.missionFails;
+  }
+  addMissionFails() {
+    this.missionFails += 1;
+  }
+
+  getCurMissionVoteDisapproves() {
+    return this.curMissionVoteDisapproves;
+  }
+  setCurMissionVoteDisapproves(newVal) {
+    this.curMissionVoteDisapproves = newVal;
+  }
   
   /* Helpers */
   shuffle(array) {
@@ -108,7 +182,7 @@ class Game {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]];
     }
-  }
+  };
 
   fillArray(value, len) {
     var arr = [];
@@ -116,7 +190,7 @@ class Game {
       arr.push(value);
     }
     return arr;
-  }
+  };
 
   /* Game Logic */
   randomizeSeatAndTeam() {
@@ -131,9 +205,9 @@ class Game {
       this.setPlayerTeam(teamArr[i], i);
       this.setSeat(this.getPlayers()[i], teamArr[i], false, false);
     }
-  }
+  };
 
-  sendSeatingInfo(io) { // this will be the socket of the last joined player
+  sendSeatingInfo(io) {
     const seats = this.getSeats();
     const cap = this.getCapacity();
 
@@ -146,19 +220,55 @@ class Game {
       const player = this.getPlayerByUsername(seats[i][0], cap);
       if (player.getTeam() === Team.Bad) {
         io.to(player.getId()).emit("shuffled_seats", seats);
+        console.log("sending shuffled seats to: ", player.getUsername(), seats);
       } else {
         io.to(player.getId()).emit("shuffled_seats", coveredSeats);
+        console.log("sending shuffled seats to: ", player.getUsername(), coveredSeats);
       }
     }
-  }
+  };
 
   gameMasterSpeech(game, io, speech) {
     io.to(game.getRoomCode()).emit("game_master_speech", speech);
-  }
+  };
 
-  letLeaderSelect(io, leaderId) {
-    io.to(leaderId).emit("leader_is_selecting", true);
-  }
+  letLeaderSelect(game, io, leaderId) {
+    for (let i = 0; i < game.getCapacity(); i++) {
+      var playerId = game.getPlayers()[i].getId();
+      io.to(playerId).emit("leader_is_selecting", playerId === leaderId);
+    }
+  };
+
+  handleVote(game, io, selectedMembers) {
+    // send out msg
+    const speech = `Very well, soldiers, please approve or disapprove ${selectedMembers.join(', ')} carrying \
+    out mission ${game.mission}`;
+    game.gameMasterSpeech(game, io, speech);
+  
+    /*
+      after vote happens, remove voteHappening
+      turn of ability for leader to select stuff
+    */
+  };
+
+  // change leader
+  changeLeader(game, io, missionResultSpeech) {
+    // clean
+    game.clearMissionResult();
+    game.changeLeaderIndex(); // changes leader index
+
+    var leader = game.getPlayers()[game.getLeaderIndex()];
+    game.setLeader(leader, game.getLeaderIndex(), true); // also changes everyone's isLeader in this.seats
+    game.clearOnMission(); // changes everyone's onMission in this.seats
+    game.sendSeatingInfo(io); // new seating info
+    io.to(game.getRoomCode()).emit("vote_track", game.getCurMissionVoteDisapproves());
+
+    const newLeaderSpeech = `We proceed. The new leader is ${leader.getUsername()}. \
+    ${leader.getUsername()}, please choose the members for mission ${game.getMission()}`;
+
+    game.gameMasterSpeech(game, io, missionResultSpeech + newLeaderSpeech);
+    game.letLeaderSelect(game, io, leader.getId());
+  };
 
   startGame(game, io) {
     // start game
@@ -171,13 +281,11 @@ class Game {
 
     // randomize leader
     var leaderIndex = Math.floor(Math.random() * game.getCapacity()); // range 0 to (cap - 1)
-    console.log("leaderindex: ", leaderIndex);
+    game.setLeaderIndex(leaderIndex);
+    
     var leader = game.getPlayers()[leaderIndex];
-    console.log("leader is: ", leader);
     game.setLeader(leader, leaderIndex, true); // also changes this.seats
     game.sendSeatingInfo(io);
-    console.log("leader is: ", leader);
-    console.log(game.seats[leaderIndex]);
 
     // start missions
     const welcomeMsg = `Welcome soldiers, I am Captain X, thank you for joining the resistance. \
@@ -185,19 +293,9 @@ class Game {
     Please beware and smoke them out. For now, we start our first mission. I am appointing ${leader.getUsername()} as the leader. \
     ${leader.getUsername()}, please choose the members for mission ${game.getMission()}`;
     game.gameMasterSpeech(game, io, welcomeMsg);
-
     // set timer
     // give leader powers, assign it the start
-    game.letLeaderSelect(io, leader.getId());
-
-
-    /* assign new leader
-    game.setLeader(oldLeader, true);
-    game.setLeader(leader, true);
-    game.sendSeatingInfo(io);
-    */
-
-
+    game.letLeaderSelect(game, io, leader.getId());
   };
 }
 
