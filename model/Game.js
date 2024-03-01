@@ -239,16 +239,25 @@ class Game {
     }
   };
 
-  handleVote(game, io, selectedMembers) {
+  handleVote(game, io, selectedMembers, room) {
+    const cap = game.getCapacity();
+    var seats = game.getSeats();
+
+    for (let i = 0; i < cap; i++) { // assigns onMission to seats
+      if (selectedMembers.includes(seats[i][0])) {
+        seats[i][3] = true;
+      } else {
+        seats[i][3] = false;
+      }
+    }
+
+    game.sendSeatingInfo(io);
+    io.in(room).emit("vote_on_these_players", { selectedPlayers: selectedMembers });
+    
     // send out msg
     const speech = `Very well, soldiers, please approve or disapprove ${selectedMembers.join(', ')} carrying \
     out mission ${game.mission}`;
     game.gameMasterSpeech(game, io, speech);
-  
-    /*
-      after vote happens, remove voteHappening
-      turn of ability for leader to select stuff
-    */
   };
 
   // change leader

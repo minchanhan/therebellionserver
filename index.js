@@ -152,21 +152,7 @@ io.on("connection", (socket) => {
   // GAMEPLAY
   socket.on("selected_players_for_vote", (info) => {
     const game = games.get(info.room);
-    const cap = game.getCapacity();
-    var seats = game.getSeats();
-
-    for (let i = 0; i < cap; i++) { // assigns onMission to seats
-      if (info.selectedPlayers.includes(seats[i][0])) {
-        seats[i][3] = true;
-      } else {
-        seats[i][3] = false;
-      }
-    }
-
-    game.sendSeatingInfo(io);
-    io.in(socket.data.roomCode).emit("vote_on_these_players", { selectedPlayers: info.selectedPlayers });
-    
-    game.handleVote(game, io, info.selectedPlayers);
+    game.handleVote(game, io, info.selectedPlayers, info.room);
   });
 
   socket.on("vote_is_in", (info) => {
@@ -186,11 +172,13 @@ io.on("connection", (socket) => {
 
       if (voteApproved) {
         // commence mission
-        game.setCurMissionVoteDisapproves(0);
-        const startMissionSpeech = `The vote has been approved, we begin our mission now. 
+        game.setCurMissionVoteDisapproves(0); // Reset vote count
+        const startMissionSpeech = `The vote has been approved, we begin our mission now.
         ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)} please
         make a decision, PASS or FAIL this mission. (Resistance members must choose pass...)`;
         game.gameMasterSpeech(game, io, startMissionSpeech);
+
+        
       } else {
         game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
         if (game.getCurMissionVoteDisapproves() > 5) {
