@@ -144,9 +144,9 @@ io.on("connection", (socket) => {
   });
 
   // MESSAGES
-  socket.on("send_msg", (msgData) => { // need to send to client the room code and username
-    // send back to all clients
-    socket.to(socket.data.roomCode).emit("receive_msg", {...msgData, roomCode: socket.data.roomCode});
+  socket.on("send_msg", (msgData) => {
+    // send back to all clients in room
+    socket.to(socket.data.roomCode).emit("receive_msg", msgData);
   });
 
   // JUST FOR TESTING //
