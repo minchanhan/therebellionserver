@@ -329,7 +329,10 @@ class Game {
   endGame(game, io, win=true, disconnect=false) {
     const roomCode = game.getRoomCode();
     const players = game.getPlayers();
-    const message = disconnect ? "Game Aborted Due to User Disconnect >:(" : (win ? "The Resistance Wins" : "The Spies Win");
+    const message = win ? "The Resistance Wins" : 
+                    !disconnect ? "The Spies Win" : 
+                    disconnect ? "Game Aborted Due to User Disconnect >:(" :
+                    "Game Over";
 
     var playerRevealArr = [];
     for (let i = 0; i < game.getCapacity(); i++) {
