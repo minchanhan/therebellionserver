@@ -28,6 +28,15 @@ const generateRoomCode = () => {
   return Array.from(Array(5), () => Math.floor(Math.random() * 36).toString(36)).join('');
 };
 
+const checkNameDupes = (username, curNumPlayers, game) => {
+  for (let i = 0; i < curNumPlayers; i++) {
+    if (game.getPlayerUsername(i) === username) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /* CRUCIAL */
 var games = new Map();
 
@@ -115,10 +124,23 @@ io.on("connection", (socket) => {
         socket.join(roomCode)
 
         var data = socket.data;
-        var player = newPlayer(data.username);
         var game = games.get(roomCode);
         const cap = game.getCapacity();
 
+        // check for duplicate usernames
+        var numDuplicates = 0;
+        var isDuplicate = false;
+        while (checkNameDupes(data.username, game.getPlayers().length, game)) {
+          numDuplicates += 1;
+          if (isDuplicate) {
+            data.username = data.username.slice(0, -1);
+          }
+          data.username = data.username + numDuplicates;
+          isDuplicate = true;
+        }
+
+        // create Player
+        var player = newPlayer(data.username);
         game.addPlayer(player);
         console.log(`User ${data.username} with id: ${socket.id} joined room ${data.roomCode}`);
 
@@ -126,9 +148,7 @@ io.on("connection", (socket) => {
         
         io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: cap, room: roomCode });
 
-        var curNumPlayers = game.getPlayers().length;
-
-        if (curNumPlayers >= cap) {
+        if (game.getPlayers().length >= cap) {
           // Reached capacity, START THE GAME
           // GAME LOGIC BEGINS HERE
           game.startGame(game, io);
