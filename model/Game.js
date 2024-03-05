@@ -13,7 +13,7 @@ class Game {
     // game logic
     this.leaderIndex = 0; // int, to help Game helpers
     this.mission = 1; // int, the mission/round game is on
-    this.curVoteTally = [0, 0]; // [int: approvals, int: disapprovals] ***
+    this.curVoteTally = [[], []]; // [arr[username], arr[username]] *** [approvers[], disapprovers[]]
     this.missionResult = [0, 0]; // [int: passes, int: fails] ***
     this.seats = []; // arr[[player.username, team, isLeader, onMission]]
     this.numSpies = this.capacity < 7 ? 2 :
@@ -117,11 +117,11 @@ class Game {
   getCurVoteTally() {
     return this.curVoteTally;
   }
-  setCurVoteTally(approve) {
-    approve ? this.curVoteTally[0] += 1 : this.curVoteTally[1] += 1;
+  setCurVoteTally(approve, voter) {
+    approve ? this.curVoteTally[0].push(voter) : this.curVoteTally[1].push(voter);
   }
   clearCurVoteTally() {
-    this.curVoteTally = [0, 0];
+    this.curVoteTally = [[], []];
   }
 
   getMissionResult() {

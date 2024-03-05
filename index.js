@@ -178,15 +178,28 @@ io.on("connection", (socket) => {
   socket.on("vote_is_in", (info) => {
     console.log("info room: ", info.room);
     const game = games.get(info.room);
-    game.setCurVoteTally(info.approve);
+    const voter = info.username;
+    game.setCurVoteTally(info.approve, voter);
 
-    const approvals = game.getCurVoteTally()[0];
-    const disapprovals = game.getCurVoteTally()[1];
+    const approvals = game.getCurVoteTally()[0].length;
+    const disapprovals = game.getCurVoteTally()[1].length;
 
     if ((approvals + disapprovals) === game.getCapacity()) {
-      // announce vote
       const voteApproved = (approvals - disapprovals) > 0;
 
+      // Send voting results to chats
+      const voteResultMsg = `${approvals > 0 ? game.getCurVoteTally()[0].join(', ') : "Nobody"} approved mission.\n
+
+      ${disapprovals > 0 ? game.getCurVoteTally()[1].join(', ') : "Nobody"} disapproved mission.`;
+
+      const msgData = {
+        msg: voteResultMsg,
+        sender: "PUBLIC TALLY",
+        time: `Mission ${game.getMission()}, Vote ${game.getCurMissionVoteDisapproves() + 1}`
+      };
+
+      io.to(info.room).emit("receive_msg", msgData);
+    
       if (voteApproved) {
         // commence mission
         game.handleMission(game, io, info.selectedPlayers);
@@ -227,7 +240,7 @@ io.on("connection", (socket) => {
 
       // If still going, then keep going with mission      
       const missionResultSpeech = missionPassed ? `Well done my soliders. We have passed the mission successfully. We have \
-      ${3 - game.getMissionPasses()} left before we complete the overthrowing.` : `This isn't good... we have failed this mission... \
+      ${3 - game.getMissionPasses()} left before we complete the overthrowing. ` : `This isn't good... we have failed this mission... \
       Just ${3 - game.getMissionFails()} more failed missions and our plans of overthrowing the power is ruined. `;
 
       io.in(info.room).emit("mission_completed", game.getMission());
