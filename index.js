@@ -229,6 +229,8 @@ io.on("connection", (socket) => {
 
       // announce mission results
       const missionPassed = fails === 0; // unless needs 2 fails to fail
+      game.setMissionResultTrack(game.getMission(), missionPassed);
+
       game.addMission(); // increment mission
       missionPassed ? game.addMissionPasses() : game.addMissionFails();
 
@@ -243,7 +245,10 @@ io.on("connection", (socket) => {
       ${3 - game.getMissionPasses()} left before we complete the overthrowing. ` : `This isn't good... we have failed this mission... \
       Just ${3 - game.getMissionFails()} more failed missions and our plans of overthrowing the power is ruined. `;
 
-      io.in(info.room).emit("mission_completed", game.getMission());
+      io.in(info.room).emit("mission_completed", { 
+        mission: game.getMission(), 
+        missionResultTrack: game.getMissionResultTrack() 
+      });
       game.changeLeader(game, io, missionResultSpeech); // change leader
     }
   });

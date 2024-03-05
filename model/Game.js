@@ -1,4 +1,5 @@
 const Team = require("../Enums/Team.js");
+const MissionResult = require("../Enums/MissionResult.js");
 
 class Game {
   constructor(roomCode, players, capacity, selectionTime, hasStarted) {
@@ -23,6 +24,13 @@ class Game {
     this.missionTeamSizes = []; // arr[int]
 
     this.curMissionVoteDisapproves = 0; // int, ***
+    this.missionResultTrack = [
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None
+    ];
     // *** means reset before action
   };
 
@@ -184,6 +192,13 @@ class Game {
   setCurMissionVoteDisapproves(newVal) {
     this.curMissionVoteDisapproves = newVal;
   }
+
+  getMissionResultTrack() {
+    return this.missionResultTrack;
+  }
+  setMissionResultTrack(mission, missionPassed) {
+    this.missionResultTrack[mission - 1] = missionPassed ? MissionResult.Pass : MissionResult.Fail;
+  }
   
   /* Helpers */
   shuffle(array) {
@@ -316,7 +331,7 @@ class Game {
     const teamSize2 = capacity <= 7 ? 3 : 4;
     const teamSize3 = capacity === 5 ? 2 : (capacity === 7) ? 3 : 4;
     const teamSize4 = capacity <= 6 ? 3 : (capacity === 7) ? 4 : 5;
-    const teamSize5 = capacity == 5 ? 3 : (capacity <= 7) ? 4 : 5;
+    const teamSize5 = capacity === 5 ? 3 : (capacity <= 7) ? 4 : 5;
     game.setMissionTeamSizes([teamSize1, teamSize2, teamSize3, teamSize4, teamSize5]);
 
     // randomize teams
