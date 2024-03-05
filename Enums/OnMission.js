@@ -1,4 +1,4 @@
-export default OnMission = Object.freeze({
+export default OnVote = Object.freeze({
   None: "none",
   Yes: "yes",
   No: "no"

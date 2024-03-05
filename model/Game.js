@@ -15,7 +15,7 @@ class Game {
     this.mission = 1; // int, the mission/round game is on
     this.curVoteTally = [0, 0]; // [int: approvals, int: disapprovals]
     this.missionResult = [0, 0]; // [int: passes, int: fails]
-    this.seats = []; // arr[[player.username, team, isLeader, onMission]]
+    this.seats = []; // arr[[player.username, team, isLeader, onVote]]
     this.numSpies = this.capacity < 7 ? 2 :
                       this.capacity < 10 ? 3 : 4;
     this.missionPasses = 0; // int
@@ -132,7 +132,7 @@ class Game {
     this.missionResult = [0, 0];
   }
 
-  clearOnMission() { // seat change
+  clearOnVote() { // seat change
     for (let i = 0; i < this.capacity; i++) {
       this.seats[i][3] = false;
     }
@@ -141,8 +141,8 @@ class Game {
   getSeats() {
     return this.seats;
   }
-  setSeat(player, team, isLeader, onMission) { // username and team only (ADDS SEAT, DOESN'T ALTER IT)
-    this.seats.push([player.getUsername(), team, isLeader, onMission]); // keeps order of players with team
+  setSeat(player, team, isLeader, onVote) { // username and team only (ADDS SEAT, DOESN'T ALTER IT)
+    this.seats.push([player.getUsername(), team, isLeader, onVote]); // keeps order of players with team
   }
   clearSeats() {
     this.seats = [];
@@ -243,7 +243,7 @@ class Game {
     const cap = game.getCapacity();
     var seats = game.getSeats();
 
-    for (let i = 0; i < cap; i++) { // assigns onMission to seats
+    for (let i = 0; i < cap; i++) { // assigns onVote to seats
       if (selectedMembers.includes(seats[i][0])) {
         seats[i][3] = true;
       } else {
@@ -260,6 +260,16 @@ class Game {
     game.gameMasterSpeech(game, io, speech);
   };
 
+  handleMission(game, io, selectedPlayers, room) {
+    game.setCurMissionVoteDisapproves(0); // Reset vote count
+    const startMissionSpeech = `The vote has been approved, we begin our mission now.
+    ${selectedPlayers.slice(0, -1).join(', ')} and ${selectedPlayers.slice(-1)} please
+    make a decision, PASS or FAIL this mission. (Resistance members must choose pass...)`;
+    game.gameMasterSpeech(game, io, startMissionSpeech);
+
+    
+  }
+
   // change leader
   changeLeader(game, io, missionResultSpeech) {
     // clean
@@ -268,7 +278,7 @@ class Game {
 
     var leader = game.getPlayers()[game.getLeaderIndex()];
     game.setLeader(leader, game.getLeaderIndex(), true); // also changes everyone's isLeader in this.seats
-    game.clearOnMission(); // changes everyone's onMission in this.seats
+    game.clearOnVote(); // changes everyone's onVote in this.seats
     game.sendSeatingInfo(io); // new seating info
     io.to(game.getRoomCode()).emit("vote_track", game.getCurMissionVoteDisapproves());
 
