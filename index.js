@@ -172,7 +172,7 @@ io.on("connection", (socket) => {
         game.handleMission(game, io, info.selectedPlayers);
       } else {
         game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
-        if (game.getCurMissionVoteDisapproves() > 5) {
+        if (game.getCurMissionVoteDisapproves() > 4) {
           game.endGame(game, io, false);
           return;
         }
