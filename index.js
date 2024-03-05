@@ -47,7 +47,7 @@ io.on("connection", (socket) => {
 
     var game = games.get(roomCode);
     if (game.getHasStarted()) {
-      io.to(roomCode).emit("set_game_end", game.getSeats()); // pass in full list of players
+      game.endGame(game, io, false, true);
       games.delete(roomCode);
     } else {
       if (game.getPlayers().length <= 1) {
@@ -173,7 +173,7 @@ io.on("connection", (socket) => {
       } else {
         game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
         if (game.getCurMissionVoteDisapproves() > 5) {
-          // handle game loss
+          game.endGame(game, io, false);
           return;
         }
         const revoteSpeech = `I see, you do not trust ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)}
@@ -198,19 +198,17 @@ io.on("connection", (socket) => {
       missionPassed ? game.addMissionPasses() : game.addMissionFails();
 
       if (game.getMissionPasses() === 3) {
-        // game over, resistance wins
-        console.log("3 passes, resistance wins!");
+        game.endGame(game, io, true);
       } else if (game.getMissionFails() === 3) {
-        // game over, resistance loses
-        console.log("3 fails, resistance loses");
+        game.endGame(game, io, false);
       }
 
       // If still going, then keep going with mission      
       const missionResultSpeech = missionPassed ? `Well done my soliders. We have passed the mission successfully. We have \
-      ${3 - game.getMissionPasses} left before we complete the overthrowing.` : `This isn't good... we have failed our mission... \
-      ${3 - game.getMissionFails()} more failed missions and our plans overthrowing is ruined. `;
+      ${3 - game.getMissionPasses()} left before we complete the overthrowing.` : `This isn't good... we have failed this mission... \
+      Just ${3 - game.getMissionFails()} more failed missions and our plans of overthrowing the power is ruined. `;
 
-      io.in(info.room).emit("mission_completed");
+      io.in(info.room).emit("mission_completed", game.getMission());
       game.changeLeader(game, io, missionResultSpeech); // change leader
     }
   });

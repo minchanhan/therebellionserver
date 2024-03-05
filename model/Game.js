@@ -325,6 +325,21 @@ class Game {
     // give leader powers, assign it the start
     game.letLeaderSelect(game, io, leader.getId());
   };
+
+  endGame(game, io, win=true, disconnect=false) {
+    const roomCode = game.getRoomCode();
+    const players = game.getPlayers();
+    const message = disconnect ? "Game Aborted Due to User Disconnect >:(" : (win ? "The Resistance Wins" : "The Spies Win");
+
+    var playerRevealArr = [];
+    for (let i = 0; i < game.getCapacity(); i++) {
+      const name = players[i].getUsername();
+      const team = players[i].getTeam();
+      playerRevealArr.push(`${name} was ${team === "badTeam" ? "an evil spy" : "part of the rebellion"}`);
+    };
+
+    io.to(roomCode).emit("set_game_end", { playerRevealArr: playerRevealArr, endMsg: "Game Over: " + message });
+  };
 }
 
 module.exports = Game;
