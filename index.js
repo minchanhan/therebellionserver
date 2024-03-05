@@ -164,21 +164,12 @@ io.on("connection", (socket) => {
     const disapprovals = game.getCurVoteTally()[1];
 
     if ((approvals + disapprovals) === game.getCapacity()) {
-      console.log("all votes are in");
       // announce vote
       const voteApproved = (approvals - disapprovals) > 0;
-      console.log("vote approved?: ", voteApproved);
-      io.in(info.room).emit("vote_result", voteApproved);
 
       if (voteApproved) {
         // commence mission
-        game.setCurMissionVoteDisapproves(0); // Reset vote count
-        const startMissionSpeech = `The vote has been approved, we begin our mission now.
-        ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)} please
-        make a decision, PASS or FAIL this mission. (Resistance members must choose pass...)`;
-        game.gameMasterSpeech(game, io, startMissionSpeech);
-
-        
+        game.handleMission(game, io, info.selectedPlayers);
       } else {
         game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
         if (game.getCurMissionVoteDisapproves() > 5) {
@@ -189,19 +180,18 @@ io.on("connection", (socket) => {
         to go on this mission. `;
         game.changeLeader(game, io, revoteSpeech);
       }
-      console.log("emitted vote approved to roomcode: ", info.room);
-
-      // clean
-      game.clearCurVoteTally();
       return;
     }
   });
 
   socket.on("mission_result_is_in", (info) => {
     const game = games.get(info.room);
+    game.setMissionResult(info.pass);
     const passes = game.getMissionResult()[0];
     const fails = game.getMissionResult()[1];
     if (passes + fails === 3) { // CHANGE TO NUMBER OF PEOPLE ON MISSIONS
+      console.log("mission has completed...");
+
       // announce mission results
       const missionPassed = fails === 0; // unless needs 2 fails to fail
       game.addMission();
@@ -209,21 +199,19 @@ io.on("connection", (socket) => {
 
       if (game.getMissionPasses() === 3) {
         // game over, resistance wins
+        console.log("3 passes, resistance wins!");
       } else if (game.getMissionFails() === 3) {
         // game over, resistance loses
+        console.log("3 fails, resistance loses");
       }
 
-      // If still going, then keep going with mission
-      io.in(info.room).emit("mission_completed");
-
+      // If still going, then keep going with mission      
       const missionResultSpeech = missionPassed ? `Well done my soliders. We have passed the mission successfully. We have \
       ${3 - game.getMissionPasses} left before we complete the overthrowing.` : `This isn't good... we have failed our mission... \
-      ${game.getMissionFails()} more failed missions and our plans overthrowing is ruined. `;
+      ${3 - game.getMissionFails()} more failed missions and our plans overthrowing is ruined. `;
 
-      // change leader
-      game.changeLeader(game, io, missionResultSpeech);
-    } else {
-      game.setMissionResult(info.pass);
+      io.in(info.room).emit("mission_completed");
+      game.changeLeader(game, io, missionResultSpeech); // change leader
     }
   });
 
