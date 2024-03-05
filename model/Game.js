@@ -20,6 +20,7 @@ class Game {
                       this.capacity < 10 ? 3 : 4;
     this.missionPasses = 0; // int
     this.missionFails = 0; // int
+    this.missionTeamSizes = []; // arr[int]
 
     this.curMissionVoteDisapproves = 0; // int, ***
     // *** means reset before action
@@ -170,6 +171,13 @@ class Game {
     this.missionFails += 1;
   }
 
+  getMissionTeamSizes() {
+    return this.missionTeamSizes;
+  }
+  setMissionTeamSizes(missionTeamSizes) {
+    this.missionTeamSizes = missionTeamSizes;
+  }
+
   getCurMissionVoteDisapproves() {
     return this.curMissionVoteDisapproves;
   }
@@ -292,7 +300,7 @@ class Game {
     io.to(game.getRoomCode()).emit("vote_track", game.getCurMissionVoteDisapproves());
 
     const newLeaderSpeech = `We proceed. The new leader is ${leader.getUsername()}. \
-    ${leader.getUsername()}, please choose the members for mission ${game.getMission()}`;
+    ${leader.getUsername()}, please choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}`;
 
     game.gameMasterSpeech(game, io, resultSpeech + newLeaderSpeech);
     game.letLeaderSelect(game, io, leader.getId());
@@ -302,13 +310,22 @@ class Game {
     // start game
     game.setHasStarted(true);
 
+    // set mission team sizes
+    const capacity = game.getCapacity();
+    const teamSize1 = capacity <= 7 ? 2 : 3;
+    const teamSize2 = capacity <= 7 ? 3 : 4;
+    const teamSize3 = capacity === 5 ? 2 : (capacity === 7) ? 3 : 4;
+    const teamSize4 = capacity <= 6 ? 3 : (capacity === 7) ? 4 : 5;
+    const teamSize5 = capacity == 5 ? 3 : (capacity <= 7) ? 4 : 5;
+    game.setMissionTeamSizes([teamSize1, teamSize2, teamSize3, teamSize4, teamSize5]);
+
     // randomize teams
     console.log("Game is starting, about to randomize seat and teams");
     game.randomizeSeatAndTeam();
     game.sendSeatingInfo(io);
 
     // randomize leader
-    var leaderIndex = Math.floor(Math.random() * game.getCapacity()); // range 0 to (cap - 1)
+    var leaderIndex = Math.floor(Math.random() * capacity); // range 0 to (cap - 1)
     game.setLeaderIndex(leaderIndex);
     
     var leader = game.getPlayers()[leaderIndex];
@@ -319,7 +336,7 @@ class Game {
     const welcomeMsg = `Welcome soldiers, I am Captain X, thank you for joining the resistance. \
     We are well on our way to overthrow the capital. However, I am aware of ${game.getNumSpies()} spies among us.. \
     Please beware and smoke them out. For now, we start our first mission. I am appointing ${leader.getUsername()} as the leader. \
-    ${leader.getUsername()}, please choose the members for mission ${game.getMission()}`;
+    ${leader.getUsername()}, please choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}`;
     game.gameMasterSpeech(game, io, welcomeMsg);
     // set timer
     // give leader powers, assign it the start
@@ -333,7 +350,9 @@ class Game {
                     !disconnect ? "The Spies Win" : 
                     disconnect ? "Game Aborted Due to User Disconnect >:(" :
                     "Game Over";
-
+    
+    game.gameMasterSpeech(game, io, message);
+    
     var playerRevealArr = [];
     for (let i = 0; i < game.getCapacity(); i++) {
       const name = players[i].getUsername();

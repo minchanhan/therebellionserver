@@ -189,12 +189,14 @@ io.on("connection", (socket) => {
     game.setMissionResult(info.pass);
     const passes = game.getMissionResult()[0];
     const fails = game.getMissionResult()[1];
-    if (passes + fails === 3) { // CHANGE TO NUMBER OF PEOPLE ON MISSIONS
+    const missionTeamSize = game.getMissionTeamSizes()[game.getMission() - 1];
+
+    if (passes + fails === missionTeamSize) { // CHANGE TO NUMBER OF PEOPLE ON MISSIONS
       console.log("mission has completed...");
 
       // announce mission results
       const missionPassed = fails === 0; // unless needs 2 fails to fail
-      game.addMission();
+      game.addMission(); // increment mission
       missionPassed ? game.addMissionPasses() : game.addMissionFails();
 
       if (game.getMissionPasses() === 3) {
