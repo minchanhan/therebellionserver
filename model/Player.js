@@ -5,7 +5,7 @@ class Player {
     team, 
     isLeader, 
     voteStatus, 
-    onVote, 
+    onMission, 
     plotCards, 
     isRevealed
   ) {
@@ -14,7 +14,7 @@ class Player {
     this.team = team; // enum: Good | Bad | Unknown
     this.isLeader = isLeader; // bool
     this.voteStatus = voteStatus; // enum: none | appr | notAppr
-    this.onVote = onVote; // enum: none | yes | no
+    this.onMission = onMission; // enum: none | yes | no
     this.plotCards = plotCards; // array[PlotCard]
     this.isRevealed = isRevealed; // bool
   }
@@ -47,11 +47,11 @@ class Player {
     this.voteStatus = voteStatus;
   }
   
-  getOnVote() {
-    return this.onVote;
+  getOnMission() {
+    return this.onMission;
   }
-  setOnVote() {
-    this.onVote = onVote;
+  setOnMission() {
+    this.onMission = onMission;
   }
   
   getPlotCards() {
@@ -78,7 +78,7 @@ var player = new Player(
   Team.None, // team
   false, // isLeader
   VoteStatus.None, // voteStatus
-  false, // onVote
+  false, // onMission
   [], // plotCards
   false // isRevealed
 );*/

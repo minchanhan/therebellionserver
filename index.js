@@ -82,7 +82,7 @@ io.on("connection", (socket) => {
       Team.Unknown, // team
       false, // isLeader
       VoteStatus.None, // voteStatus
-      false, // onVote
+      false, // onMission
       [], // plotCards
       false // isRevealed
     );
@@ -172,9 +172,13 @@ io.on("connection", (socket) => {
 
       if (voteApproved) {
         // commence mission
-        game.handleMission(game, io, info.selectedPlayers, info.room);
-        
+        game.setCurMissionVoteDisapproves(0); // Reset vote count
+        const startMissionSpeech = `The vote has been approved, we begin our mission now.
+        ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)} please
+        make a decision, PASS or FAIL this mission. (Resistance members must choose pass...)`;
+        game.gameMasterSpeech(game, io, startMissionSpeech);
 
+        
       } else {
         game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
         if (game.getCurMissionVoteDisapproves() > 5) {
