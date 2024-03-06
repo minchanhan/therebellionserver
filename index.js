@@ -107,6 +107,7 @@ io.on("connection", (socket) => {
     var player = newPlayer(username);
     game.addPlayer(player);
     console.log(`User ${username} with id: ${id} joined room ${roomCode}`);
+    io.to(id).emit("final_username_set", username);
   
     game.setSeat(player, Team.Unknown, false, false);
     io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: game.getCapacity(), room: roomCode });
