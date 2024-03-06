@@ -2,12 +2,13 @@ const Team = require("../Enums/Team.js");
 const MissionResult = require("../Enums/MissionResult.js");
 
 class Game {
-  constructor(roomCode, players, capacity, selectionTime, hasStarted) {
+  constructor(roomCode, players, capacity, privateRoom, selectionTime, hasStarted) {
     this.roomCode = roomCode; // string
     this.players = players; // arr[Player]
 
     // room settings
     this.capacity = capacity // int
+    this.privateRoom = privateRoom; // bool
     this.selectionTime = selectionTime // int
     this.hasStarted = hasStarted // bool
 
@@ -89,6 +90,10 @@ class Game {
   getCapacity() {
     return this.capacity;
   };
+
+  getPrivateRoom() {
+    return this.privateRoom;
+  }
 
   getSelectionTime() {
     return this.selectionTime;

@@ -79,6 +79,10 @@ io.on("connection", (socket) => {
     socket.data.capacity = capacity;
   });
 
+  socket.on("set_private", (privateRoom) => {
+    socket.data.privateRoom = privateRoom;
+  });
+
   socket.on("set_selection_time", (selectionTime) => { // from CreateRoom
     socket.data.selectionTime = selectionTime;
   });
@@ -147,7 +151,7 @@ io.on("connection", (socket) => {
 
     socket.join(roomCode);
 
-    const game = new Game(roomCode, [player], data.capacity, data.selectionTime, false);
+    const game = new Game(roomCode, [player], data.capacity, data.privateRoom, data.selectionTime, false);
     games.set(roomCode, game);
     game.setSeat(player, Team.Unknown, false, false);
 
@@ -160,7 +164,7 @@ io.on("connection", (socket) => {
     if (roomCode === "random_join") {
       for (let [room, game] of games) {
         console.log(`${room} has ${game.getPlayers().length} players`);
-        if (game.getPlayers().length < game.getCapacity()) {
+        if (game.getPlayers().length < game.getCapacity() && !game.getPrivateRoom()) {
           handlePlayerJoin(socket.id, room, game, io);
           return;
         }
