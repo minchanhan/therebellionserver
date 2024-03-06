@@ -98,6 +98,45 @@ io.on("connection", (socket) => {
     return player;
   };
 
+  const createPlayer = (username, id, roomCode, game, io) => {
+    var player = newPlayer(username);
+    game.addPlayer(player);
+    console.log(`User ${username} with id: ${id} joined room ${roomCode}`);
+  
+    game.setSeat(player, Team.Unknown, false, false);
+    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: game.getCapacity(), room: roomCode });
+  };
+
+  const setAndReturnUniqueName = (game) => {
+    // check for duplicate usernames
+    var numDuplicates = 0;
+    var isDuplicate = false;
+    while (checkNameDupes(socket.data.username, game.getPlayers().length, game)) {
+      numDuplicates += 1;
+      if (isDuplicate) {
+        socket.data.username = socket.data.username.slice(0, -1);
+      }
+      socket.data.username = socket.data.username + numDuplicates;
+      isDuplicate = true;
+    }
+    return socket.data.username;
+  };
+
+  const handlePlayerJoin = (id, roomCode, game, io) => {
+    socket.data.roomCode = roomCode;
+    socket.join(roomCode);
+
+    const uniqueName = setAndReturnUniqueName(game);
+
+    // create Player and add to game and seat
+    // also emit to room that player joined
+    createPlayer(uniqueName, id, roomCode, game, io);
+    if (game.getPlayers().length >= game.getCapacity()) {
+      // Reached capacity, START THE GAME
+      game.startGame(game, io);
+    }
+  };
+
   // ROOMS //
   socket.on("create_room", () => {
     // create room code
@@ -117,42 +156,26 @@ io.on("connection", (socket) => {
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
+    // random join case
+    if (roomCode === "random_join") {
+      for (let [room, game] of games) {
+        console.log(`${room} has ${game.getPlayers().length} players`);
+        if (game.getPlayers().length < game.getCapacity()) {
+          handlePlayerJoin(socket.id, room, game, io);
+          return;
+        }
+      }
+      // If not returned by end of loop, tell user there are no available games currently
+      // and to try again later or create a new room
+      socket.emit("no_random_game", "All games are currently full, please try again later...");
+      return;
+    }
+
     if (games.has(roomCode)) {
       if (!games.get(roomCode).getHasStarted()) { // game hasn't started
         socket.emit("room_with_code", { exists: true, reason: "" });
-        socket.data.roomCode = roomCode;
-        socket.join(roomCode)
-
-        var data = socket.data;
         var game = games.get(roomCode);
-        const cap = game.getCapacity();
-
-        // check for duplicate usernames
-        var numDuplicates = 0;
-        var isDuplicate = false;
-        while (checkNameDupes(data.username, game.getPlayers().length, game)) {
-          numDuplicates += 1;
-          if (isDuplicate) {
-            data.username = data.username.slice(0, -1);
-          }
-          data.username = data.username + numDuplicates;
-          isDuplicate = true;
-        }
-
-        // create Player
-        var player = newPlayer(data.username);
-        game.addPlayer(player);
-        console.log(`User ${data.username} with id: ${socket.id} joined room ${data.roomCode}`);
-
-        game.setSeat(player, Team.Unknown, false, false);
-        
-        io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: cap, room: roomCode });
-
-        if (game.getPlayers().length >= cap) {
-          // Reached capacity, START THE GAME
-          // GAME LOGIC BEGINS HERE
-          game.startGame(game, io);
-        }
+        handlePlayerJoin(socket.id, roomCode, game, io);
       } else {
         socket.emit("room_with_code", { exists: false, reason: "Game has already started" });
         return;
