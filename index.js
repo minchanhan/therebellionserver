@@ -52,9 +52,10 @@ io.on("connection", (socket) => {
     if (socket.data.roomCode == null) return;
 
     const roomCode = socket.data.roomCode;
-    if (roomCode === "" || roomCode == null) return;
-
     var game = games.get(roomCode);
+
+    if (game == null) return;
+
     if (game.getHasStarted()) {
       game.endGame(game, io, false, true);
       games.delete(roomCode);
