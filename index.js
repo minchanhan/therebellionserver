@@ -110,7 +110,7 @@ io.on("connection", (socket) => {
     io.to(id).emit("final_username_set", username);
   
     game.setSeat(player, Team.Unknown, false, false);
-    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: game.getCapacity(), room: roomCode });
+    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), capacity: game.getCapacity(), room: roomCode });
   };
 
   const setAndReturnUniqueName = (game) => {
@@ -158,7 +158,7 @@ io.on("connection", (socket) => {
     game.setSeat(player, Team.Unknown, false, false);
 
     console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`); //
-    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: data.capacity, room: data.roomCode });
+    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), capacity: data.capacity, room: data.roomCode });
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
