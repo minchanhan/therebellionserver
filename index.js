@@ -78,14 +78,17 @@ io.on("connection", (socket) => {
 
   socket.on("set_capacity", (capacity) => { // from CreateRoom
     socket.data.capacity = capacity;
-  });
-
-  socket.on("set_private", (privateRoom) => {
-    socket.data.privateRoom = privateRoom;
+    console.log("capacity set: ", capacity);
   });
 
   socket.on("set_selection_time", (selectionTime) => { // from CreateRoom
     socket.data.selectionTime = selectionTime;
+    console.log("selectionTime set: ", selectionTime);
+  });
+
+  socket.on("set_private", (privateRoom) => {
+    socket.data.privateRoom = privateRoom;
+    console.log("private room set: ", privateRoom);
   });
 
   const newPlayer = (username) => {
