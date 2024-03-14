@@ -43,11 +43,11 @@ var games = new Map();
 // SOCKET SETUP //
 io.on("connection", (socket) => {
   // CONNECTION
-  console.log(`User Connected: ${socket.id}`);
+  console.log(`User Connected: ${socket.id}`); //
 
   // DISCONNECT
   socket.on("disconnect", () => {
-    console.log(`User Disconnected: ${socket.id}`);
+    console.log(`User Disconnected: ${socket.id}`); //
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
 
@@ -68,7 +68,7 @@ io.on("connection", (socket) => {
       }
     }
 
-    console.log("games: ", games);
+    console.log("games: ", games); //
   });
 
   // DATA //
@@ -78,17 +78,14 @@ io.on("connection", (socket) => {
 
   socket.on("set_capacity", (capacity) => { // from CreateRoom
     socket.data.capacity = capacity;
-    console.log("capacity set: ", capacity);
   });
 
   socket.on("set_selection_time", (selectionTime) => { // from CreateRoom
     socket.data.selectionTime = selectionTime;
-    console.log("selectionTime set: ", selectionTime);
   });
 
   socket.on("set_private", (privateRoom) => {
     socket.data.privateRoom = privateRoom;
-    console.log("private room set: ", privateRoom);
   });
 
   const newPlayer = (username) => {
@@ -109,7 +106,7 @@ io.on("connection", (socket) => {
   const createPlayer = (username, id, roomCode, game, io) => {
     var player = newPlayer(username);
     game.addPlayer(player);
-    console.log(`User ${username} with id: ${id} joined room ${roomCode}`);
+    console.log(`User ${username} with id: ${id} joined room ${roomCode}`); //
     io.to(id).emit("final_username_set", username);
   
     game.setSeat(player, Team.Unknown, false, false);
@@ -160,7 +157,7 @@ io.on("connection", (socket) => {
     games.set(roomCode, game);
     game.setSeat(player, Team.Unknown, false, false);
 
-    console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`);
+    console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`); //
     io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), numPlayers: data.capacity, room: data.roomCode });
   });
 
@@ -168,7 +165,6 @@ io.on("connection", (socket) => {
     // random join case
     if (roomCode === "random_join") {
       for (let [room, game] of games) {
-        console.log(`${room} has ${game.getPlayers().length} players`);
         if (game.getPlayers().length < game.getCapacity() && !game.getPrivateRoom()) {
           handlePlayerJoin(socket.id, room, game, io);
           return;
@@ -208,7 +204,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("vote_is_in", (info) => {
-    console.log("info room: ", info.room);
     const game = games.get(info.room);
     const voter = info.username;
     game.setCurVoteTally(info.approve, voter);
@@ -257,8 +252,6 @@ io.on("connection", (socket) => {
     const missionTeamSize = game.getMissionTeamSizes()[game.getMission() - 1];
 
     if (passes + fails === missionTeamSize) { // CHANGE TO NUMBER OF PEOPLE ON MISSIONS
-      console.log("mission has completed...");
-
       // announce mission results
       const missionPassed = fails === 0; // unless needs 2 fails to fail
       game.setMissionResultTrack(game.getMission(), missionPassed);

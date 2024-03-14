@@ -50,8 +50,6 @@ class Game {
         this.seats.splice(i, 1);
       }
     }
-    console.log("new player list is: ", this.players);
-    console.log("new seats list is: ", this.seats);
   }
   getPlayers() {
     return this.players;
@@ -249,10 +247,8 @@ class Game {
       const player = this.getPlayerByUsername(seats[i][0], cap);
       if (player.getTeam() === Team.Bad) {
         io.to(player.getId()).emit("shuffled_seats", seats);
-        console.log("sending shuffled seats to: ", player.getUsername(), seats);
       } else {
         io.to(player.getId()).emit("shuffled_seats", coveredSeats);
-        console.log("sending shuffled seats to: ", player.getUsername(), coveredSeats);
       }
     }
   };
@@ -340,7 +336,7 @@ class Game {
     game.setMissionTeamSizes([teamSize1, teamSize2, teamSize3, teamSize4, teamSize5]);
 
     // randomize teams
-    console.log("Game is starting, about to randomize seat and teams");
+    console.log("Game is starting, about to randomize seat and teams"); //
     game.randomizeSeatAndTeam();
     game.sendSeatingInfo(io);
 
