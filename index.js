@@ -265,8 +265,10 @@ io.on("connection", (socket) => {
 
       if (game.getMissionPasses() === 3) {
         game.endGame(game, io, true);
+        return;
       } else if (game.getMissionFails() === 3) {
         game.endGame(game, io, false);
+        return;
       }
 
       // If still going, then keep going with mission      
