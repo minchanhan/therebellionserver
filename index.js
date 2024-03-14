@@ -76,6 +76,10 @@ io.on("connection", (socket) => {
     socket.data.username = username;
   });
 
+  socket.on("set_room_admin", (isAdmin) => {
+    socket.data.isAdmin = isAdmin;
+  });
+
   socket.on("set_capacity", (capacity) => { // from CreateRoom
     socket.data.capacity = capacity;
   });
@@ -88,10 +92,11 @@ io.on("connection", (socket) => {
     socket.data.privateRoom = privateRoom;
   });
 
-  const newPlayer = (username) => {
+  const newPlayer = (username, isAdmin) => {
     var player = new Player(
       username, // username
       socket.id, // id
+      isAdmin, // isAdmin
 
       Team.Unknown, // team
       false, // isLeader
@@ -103,8 +108,9 @@ io.on("connection", (socket) => {
     return player;
   };
 
-  const createPlayer = (username, id, roomCode, game, io) => {
-    var player = newPlayer(username);
+  const makeAndJoinPlayer = (username, id, roomCode, game, io) => {
+    var player = newPlayer(username, false);
+    socket.data.isAdmin = false;
     game.addPlayer(player);
     console.log(`User ${username} with id: ${id} joined room ${roomCode}`); //
     io.to(id).emit("final_username_set", username);
@@ -136,7 +142,7 @@ io.on("connection", (socket) => {
 
     // create Player and add to game and seat
     // also emit to room that player joined
-    createPlayer(uniqueName, id, roomCode, game, io);
+    makeAndJoinPlayer(uniqueName, id, roomCode, game, io);
     if (game.getPlayers().length >= game.getCapacity()) {
       // Reached capacity, START THE GAME
       game.startGame(game, io);
@@ -147,7 +153,7 @@ io.on("connection", (socket) => {
   socket.on("create_room", () => {
     // create room code
     var data = socket.data;
-    var player = newPlayer(data.username);
+    var player = newPlayer(data.username, true);
     const roomCode = generateRoomCode();
     socket.data.roomCode = roomCode;
 
@@ -283,6 +289,7 @@ io.on("connection", (socket) => {
   // JUST FOR TESTING //
   socket.on("checkGames", () => { // on msg send
     console.log("games looks like: ", games.get(socket.data.roomCode).getPlayers());
+    console.log("am I leader: ", socket.data.isAdmin);
   });
 });
 

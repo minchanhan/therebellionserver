@@ -2,6 +2,7 @@ class Player {
   constructor(
     username,
     id,
+    isAdmin,
     team, 
     isLeader, 
     voteStatus, 
@@ -11,6 +12,7 @@ class Player {
   ) {
     this.username = username; // string
     this.id = id; // string
+    this.isAdmin = isAdmin;
     this.team = team; // enum: Good | Bad | Unknown
     this.isLeader = isLeader; // bool
     this.voteStatus = voteStatus; // enum: none | appr | notAppr
@@ -24,6 +26,13 @@ class Player {
   }
   getId() {
     return this.id;
+  }
+
+  getIsAdmin() {
+    return this.isAdmin;
+  }
+  setIsAdmin(isAdmin) {
+    this.isAdmin = isAdmin;
   }
 
   getTeam() {
