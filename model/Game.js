@@ -60,8 +60,8 @@ class Game {
   getPlayerUsername(index) {
     return this.players[index].getUsername();
   }
-  getPlayerByUsername(username, cap) {
-    for (let i = 0; i < cap; i++) {
+  getPlayerByUsername(username, numPlayers) {
+    for (let i = 0; i < numPlayers; i++) {
       if (this.getPlayerUsername(i) === username) {
         return this.getPlayers()[i];
       }
@@ -228,6 +228,15 @@ class Game {
     return arr;
   };
 
+  getRoomAdmin() {
+    const players = this.getPlayers();
+    for (let i = 0; i < players.length; i++) {
+      if (players[i].getIsAdmin()) {
+        return players[i].getUsername();
+      }
+    }
+  }
+
   /* Game Logic */
   randomizeSeatAndTeam() {
     this.clearSeats();
@@ -245,19 +254,19 @@ class Game {
 
   sendSeatingInfo(io) {
     const seats = this.getSeats();
-    const cap = this.getCapacity();
+    const numPlayers = seats.length;
 
     var coveredSeats = JSON.parse(JSON.stringify(seats)); // deep copy of seats, team will be covered
-    for (let i = 0; i < cap; i++) {
+    for (let i = 0; i < numPlayers; i++) {
       coveredSeats[i][1] = Team.Unknown;
     }
 
-    for (let i = 0; i < cap; i++) {
-      const player = this.getPlayerByUsername(seats[i][0], cap);
+    for (let i = 0; i < numPlayers; i++) {
+      const player = this.getPlayerByUsername(seats[i][0], numPlayers);
       if (player.getTeam() === Team.Bad) {
-        io.to(player.getId()).emit("shuffled_seats", seats);
+        io.to(player.getId()).emit("seats_info_share", seats);
       } else {
-        io.to(player.getId()).emit("shuffled_seats", coveredSeats);
+        io.to(player.getId()).emit("seats_info_share", coveredSeats);
       }
     }
   };
@@ -285,7 +294,7 @@ class Game {
       }
     }
 
-    game.sendSeatingInfo(io);
+    game.sendSeatingInfo(io)
     io.in(room).emit("vote_on_these_players", { selectedPlayers: selectedMembers });
     
     // send out msg
@@ -368,7 +377,7 @@ class Game {
     game.letLeaderSelect(game, io, leader.getId());
   };
 
-  endGame(game, io, win=true, disconnect=false) {
+  endGame(game, io, win=true, disconnect=false, disconnectedPlayer="") {
     const roomCode = game.getRoomCode();
     const players = game.getPlayers();
     const message = win ? "The Resistance Wins" : 
@@ -386,6 +395,12 @@ class Game {
     };
 
     io.to(roomCode).emit("set_game_end", { playerRevealArr: playerRevealArr, endMsg: "Game Over: " + message });
+
+    if (disconnect) {
+      game.removePlayer(disconnectedPlayer); // remove one player
+    }
+    game.sendSeatingInfo(io);
+    console.log("Game ended, game info now: ", game);
   };
 }
 

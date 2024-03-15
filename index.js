@@ -57,14 +57,13 @@ io.on("connection", (socket) => {
     if (game == null) return;
 
     if (game.getHasStarted()) {
-      game.endGame(game, io, false, true);
-      games.delete(roomCode);
+      game.endGame(game, io, false, true, socket.id);
     } else {
       if (game.getPlayers().length <= 1) {
         games.delete(roomCode); // no emit needed, there'll be nothing left
       } else {
         game.removePlayer(socket.id); // remove one player
-        io.to(roomCode).emit("player_left_lobby", game.getSeats());
+        game.sendSeatingInfo(io);
       }
     }
 
@@ -139,7 +138,11 @@ io.on("connection", (socket) => {
   
     game.setSeat(player, Team.Unknown, false, false);
     sendUpdateGameSettings(roomCode);
-    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), room: roomCode });
+    io.to(roomCode).emit("player_joined_lobby", { 
+      seats: game.getSeats(), 
+      room: roomCode, 
+      roomAdmin: game.getRoomAdmin() 
+    });
   };
 
   const setAndReturnUniqueName = (game) => {
@@ -187,7 +190,11 @@ io.on("connection", (socket) => {
     game.setSeat(player, Team.Unknown, false, false);
 
     console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`); //
-    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), room: data.roomCode });
+    io.to(roomCode).emit("player_joined_lobby", { 
+      seats: game.getSeats(), 
+      room: data.roomCode, 
+      roomAdmin: game.getRoomAdmin() 
+    });
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
@@ -227,12 +234,12 @@ io.on("connection", (socket) => {
   });
 
   // GAMEPLAY
-  socket.on("selected_players_for_vote", (info) => {
+  socket.on("selected_players_for_vote", (info) => { // 1
     const game = games.get(info.room);
     game.handleVote(game, io, info.selectedPlayers, info.room);
   });
 
-  socket.on("vote_is_in", (info) => {
+  socket.on("vote_is_in", (info) => { // 2
     const game = games.get(info.room);
     const voter = info.username;
     game.setCurVoteTally(info.approve, voter);
@@ -254,7 +261,7 @@ io.on("connection", (socket) => {
         time: `Mission ${game.getMission()}, Vote ${game.getCurMissionVoteDisapproves() + 1}`
       };
 
-      io.to(info.room).emit("receive_msg", msgData);
+      io.to(info.room).emit("receive_msg", msgData); // send public tally to CHATBOX THIS TIME
     
       if (voteApproved) {
         // commence mission
