@@ -290,7 +290,9 @@ io.on("connection", (socket) => {
 
     if (passes + fails === missionTeamSize) { // CHANGE TO NUMBER OF PEOPLE ON MISSIONS
       // announce mission results
-      const missionPassed = fails === 0; // unless needs 2 fails to fail
+      const cap = game.getCapacity();
+      const mission = game.getMission();
+      const missionPassed = cap >= 7 && mission === 4 ? fails < 2 : fails === 0;
       game.setMissionResultTrack(game.getMission(), missionPassed);
 
       game.addMission(); // increment mission
