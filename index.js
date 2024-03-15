@@ -95,6 +95,7 @@ io.on("connection", (socket) => {
   socket.on("set_capacity", (capacity) => { // game settings
     socket.data.capacity = capacity;
     games.get(socket.data.roomCode)?.setCapacity(capacity);
+    games.get(socket.data.roomCode)?.setNumSpies(capacity);
     console.log("capacity set: ", capacity);
     sendUpdateGameSettings(socket.data.roomCode);
   });
@@ -318,7 +319,7 @@ io.on("connection", (socket) => {
 
   // JUST FOR TESTING //
   socket.on("checkGames", () => { // on msg send
-    console.log("games looks like: ", games.get(socket.data.roomCode).getPlayers());
+    console.log("games: ", games);
   });
 });
 

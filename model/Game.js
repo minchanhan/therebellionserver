@@ -18,8 +18,9 @@ class Game {
     this.curVoteTally = [[], []]; // [arr[username], arr[username]] *** [approvers[], disapprovers[]]
     this.missionResult = [0, 0]; // [int: passes, int: fails] ***
     this.seats = []; // arr[[player.username, team, isLeader, onMission]]
-    this.numSpies = this.capacity < 7 ? 2 :
-                      this.capacity < 10 ? 3 : 4;
+    this.numSpies = this.capacity < 7 ? 2 
+                    : this.capacity < 10 ? 3 
+                    : 4; // int, relies on capacity
     this.missionPasses = 0; // int
     this.missionFails = 0; // int
     this.missionTeamSizes = []; // arr[int]
@@ -173,8 +174,10 @@ class Game {
   getNumSpies() {
     return this.numSpies;
   }
-  setNumSpies(numSpies) {
-    this.numSpies = numSpies;
+  setNumSpies(capacity) {
+    this.numSpies = capacity < 7 ? 2 
+                    : capacity < 10 ? 3 
+                    : 4;
   }
 
   getMissionPasses() {
@@ -388,7 +391,8 @@ class Game {
     game.gameMasterSpeech(game, io, message);
     
     var playerRevealArr = [];
-    for (let i = 0; i < game.getCapacity(); i++) {
+
+    for (let i = 0; i < game.getCapacity(); i++) { //flag error, maybe only on !disconnect
       const name = players[i].getUsername();
       const team = players[i].getTeam();
       playerRevealArr.push(`${name} was ${team === "badTeam" ? "an evil spy" : "part of the rebellion"}`);
