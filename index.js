@@ -56,9 +56,9 @@ io.on("connection", (socket) => {
 
     if (game == null) return;
 
-    if (game.getHasStarted()) {
+    if (game.getHasStarted()) { // In game, non lobby
       game.endGame(game, io, false, true, socket.id);
-    } else {
+    } else { // lobby
       if (game.getPlayers().length <= 1) {
         games.delete(roomCode); // no emit needed, there'll be nothing left
       } else {
@@ -271,6 +271,7 @@ io.on("connection", (socket) => {
         game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
         if (game.getCurMissionVoteDisapproves() > 4) {
           game.endGame(game, io, false);
+          game.setHasStarted(false);
           return;
         }
         const revoteSpeech = `I see, you do not trust ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)}
@@ -300,9 +301,11 @@ io.on("connection", (socket) => {
 
       if (game.getMissionPasses() === 3) {
         game.endGame(game, io, true);
+        game.setHasStarted(false);
         return;
       } else if (game.getMissionFails() === 3) {
         game.endGame(game, io, false);
+        game.setHasStarted(false);
         return;
       }
 
