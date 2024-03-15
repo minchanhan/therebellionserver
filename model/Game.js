@@ -88,13 +88,22 @@ class Game {
   getCapacity() {
     return this.capacity;
   };
+  setCapacity(capacity) {
+    this.capacity = capacity;
+  };
 
   getPrivateRoom() {
     return this.privateRoom;
-  }
+  };
+  setPrivateRoom(privateRoom) {
+    this.privateRoom = privateRoom;
+  };
 
   getSelectionTime() {
     return this.selectionTime;
+  };
+  setSelectionTime(selectionTime) {
+    this.selectionTime = selectionTime;
   }
 
   getHasStarted() {

@@ -74,22 +74,44 @@ io.on("connection", (socket) => {
   // DATA //
   socket.on("set_username", (username) => {
     socket.data.username = username;
+    console.log("username set: ", username);
   });
 
   socket.on("set_room_admin", (isAdmin) => {
     socket.data.isAdmin = isAdmin;
+    console.log("isAdmin set: ", isAdmin);
   });
 
-  socket.on("set_capacity", (capacity) => { // from CreateRoom
+  
+  const sendUpdateGameSettings = (roomCode) => {
+    const game = games.get(roomCode);
+
+    io.to(roomCode).emit("game_settings_changed", { 
+      capacity: game != null ? game.getCapacity() : socket.data.capacity, // uses socket.data
+      selectionTime: game != null ? game.getSelectionTime() : socket.data.selectionTime, // for when creating room
+      privateRoom: game != null ? game.getPrivateRoom() : socket.data.privateRoom 
+    });
+  };
+
+  socket.on("set_capacity", (capacity) => { // game settings
     socket.data.capacity = capacity;
+    games.get(socket.data.roomCode)?.setCapacity(capacity);
+    console.log("capacity set: ", capacity);
+    sendUpdateGameSettings(socket.data.roomCode);
   });
 
-  socket.on("set_selection_time", (selectionTime) => { // from CreateRoom
+  socket.on("set_selection_time", (selectionTime) => { // game settings
     socket.data.selectionTime = selectionTime;
+    games.get(socket.data.roomCode)?.setSelectionTime(selectionTime);
+    console.log("selection time set: ", selectionTime);
+    sendUpdateGameSettings(socket.data.roomCode);
   });
 
-  socket.on("set_private", (privateRoom) => {
+  socket.on("set_private", (privateRoom) => { // game settings
     socket.data.privateRoom = privateRoom;
+    games.get(socket.data.roomCode)?.setPrivateRoom(privateRoom);
+    console.log("private room set: ", privateRoom);
+    sendUpdateGameSettings(socket.data.roomCode);
   });
 
   const newPlayer = (username, isAdmin) => {
@@ -116,7 +138,8 @@ io.on("connection", (socket) => {
     io.to(id).emit("final_username_set", username);
   
     game.setSeat(player, Team.Unknown, false, false);
-    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), capacity: game.getCapacity(), room: roomCode });
+    sendUpdateGameSettings(roomCode);
+    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), room: roomCode });
   };
 
   const setAndReturnUniqueName = (game) => {
@@ -159,12 +182,12 @@ io.on("connection", (socket) => {
 
     socket.join(roomCode);
 
-    const game = new Game(roomCode, [player], data.capacity, data.privateRoom, data.selectionTime, false);
+    const game = new Game(roomCode, [player], 5, true, 7, false); // default cap = 5, priv = true, selTime = 7
     games.set(roomCode, game);
     game.setSeat(player, Team.Unknown, false, false);
 
     console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`); //
-    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), capacity: data.capacity, room: data.roomCode });
+    io.to(roomCode).emit("player_joined_lobby", { seats: game.getSeats(), room: data.roomCode });
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
@@ -289,7 +312,6 @@ io.on("connection", (socket) => {
   // JUST FOR TESTING //
   socket.on("checkGames", () => { // on msg send
     console.log("games looks like: ", games.get(socket.data.roomCode).getPlayers());
-    console.log("am I leader: ", socket.data.isAdmin);
   });
 });
 
