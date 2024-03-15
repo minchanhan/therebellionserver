@@ -14,25 +14,26 @@ class Game {
 
     // game logic
     this.leaderIndex = 0; // int, to help Game helpers
-    this.mission = 1; // int, the mission/round game is on
+    this.mission = 1; // int, the mission/round game is on ***
     this.curVoteTally = [[], []]; // [arr[username], arr[username]] *** [approvers[], disapprovers[]]
     this.missionResult = [0, 0]; // [int: passes, int: fails] ***
     this.seats = []; // arr[[player.username, team, isLeader, onMission]]
     this.numSpies = this.capacity < 7 ? 2 
                     : this.capacity < 10 ? 3 
                     : 4; // int, relies on capacity
-    this.missionPasses = 0; // int
-    this.missionFails = 0; // int
+    this.missionPasses = 0; // int ***
+    this.missionFails = 0; // int ***
     this.missionTeamSizes = []; // arr[int]
 
     this.curMissionVoteDisapproves = 0; // int, ***
-    this.missionResultTrack = [
+    this.missionResultTrack = [ // ***
       MissionResult.None, 
       MissionResult.None, 
       MissionResult.None, 
       MissionResult.None, 
       MissionResult.None
     ];
+    this.gameRound = 1;
     // *** means reset before action
   };
 
@@ -134,6 +135,9 @@ class Game {
   addMission() {
     this.mission += 1;
   }
+  resetMission() {
+    this.mission = 1;
+  }
 
   getCurVoteTally() {
     return this.curVoteTally;
@@ -186,12 +190,18 @@ class Game {
   addMissionPasses() {
     this.missionPasses += 1;
   }
+  clearMissionPasses() {
+    this.missionPasses = 0;
+  }
 
   getMissionFails() {
     return this.missionFails;
   }
   addMissionFails() {
     this.missionFails += 1;
+  }
+  clearMissionFails() {
+    this.missionFails = 0;
   }
 
   getMissionTeamSizes() {
@@ -213,6 +223,22 @@ class Game {
   }
   setMissionResultTrack(mission, missionPassed) {
     this.missionResultTrack[mission - 1] = missionPassed ? MissionResult.Pass : MissionResult.Fail;
+  }
+  clearMissionResultTrack() {
+    this.missionResultTrack = [
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None
+    ];
+  }
+
+  getGameRound() {
+    return this.gameRound;
+  }
+  addGameRound() {
+    this.gameRound += 1;
   }
   
   /* Helpers */
@@ -343,7 +369,21 @@ class Game {
     game.letLeaderSelect(game, io, leader.getId());
   };
 
+  resetGameStates(game) {
+    console.log("resetting game states");
+    game.resetMission();
+    game.clearCurVoteTally();
+    game.clearMissionResult();
+    game.clearOnMission(); // clears everyone's onMission in this.seats
+    // isLeader is properly set start of game
+    game.clearMissionPasses();
+    game.clearMissionFails();
+    // curMissionVoteDisapproves is set to 0 at start of vote
+    game.clearMissionResultTrack();
+  }
+
   startGame(game, io) {
+    if (game.getGameRound() > 1) game.resetGameStates(game, io);
     // start game
     game.setHasStarted(true);
 
@@ -387,6 +427,8 @@ class Game {
                     !disconnect ? "The Spies Win" : 
                     disconnect ? "Game Aborted Due to User Disconnect >:(" :
                     "Game Over";
+
+    if (!disconnect) game.addGameRound();
     
     game.gameMasterSpeech(game, io, message);
     

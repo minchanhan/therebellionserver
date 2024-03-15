@@ -170,10 +170,6 @@ io.on("connection", (socket) => {
     // create Player and add to game and seat
     // also emit to room that player joined
     makeAndJoinPlayer(uniqueName, id, roomCode, game, io);
-    if (game.getPlayers().length >= game.getCapacity()) {
-      // Reached capacity, START THE GAME
-      game.startGame(game, io);
-    }
   };
 
   // ROOMS //
@@ -235,6 +231,11 @@ io.on("connection", (socket) => {
   });
 
   // GAMEPLAY
+  socket.on("admin_start_game", () => {
+    const game = games.get(socket.data.roomCode);
+    game.startGame(game, io);
+  });
+
   socket.on("selected_players_for_vote", (info) => { // 1
     const game = games.get(info.room);
     game.handleVote(game, io, info.selectedPlayers, info.room);
