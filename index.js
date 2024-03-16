@@ -24,6 +24,7 @@ const io = new Server(server, { // for work with socket.io
   },
 });
 
+// Generic Helpers
 const generateRoomCode = () => {
   return Array.from(Array(5), () => Math.floor(Math.random() * 36).toString(36)).join('');
 };
@@ -81,7 +82,6 @@ io.on("connection", (socket) => {
     console.log("isAdmin set: ", isAdmin);
   });
 
-  
   const sendUpdateGameSettings = (roomCode) => {
     const game = games.get(roomCode);
 
@@ -239,6 +239,15 @@ io.on("connection", (socket) => {
   });
 
   // MESSAGES
+  const errorNotInLobby = (username) => {
+    const error = {
+      msg: `${username} not in lobby, try removing extra spaces in this command?`,
+      sender: "THE UNIVERSE",
+      time: ""
+    };
+    io.to(socket.id).emit("receive_msg", error);
+  };
+
   socket.on("send_msg", (msgData) => {
     const game = games.get(socket.data.roomCode);
     const msgLen = msgData.msg.length;
@@ -247,12 +256,7 @@ io.on("connection", (socket) => {
       const kickedUsername = msgData.msg.slice(6, msgLen);
       if (kickedUsername === socket.data.username) return;
       if (!checkNameDupes(kickedUsername, game.getPlayers().length, game)) {
-        var error = {
-          msg: `${kickedUsername} not in lobby, try removing extra spaces in this command?`,
-          sender: "THE UNIVERSE",
-          time: ""
-        };
-        io.to(socket.id).emit("receive_msg", error);
+        errorNotInLobby(kickedUsername);
         return;
       }
       
@@ -277,12 +281,7 @@ io.on("connection", (socket) => {
       if (newAdminUsername === socket.data.username) return;
 
       if (!checkNameDupes(newAdminUsername, game.getPlayers().length, game)) {
-        const error = {
-          msg: `${newAdminUsername} not in lobby, try removing extra spaces in this command?`,
-          sender: "THE UNIVERSE",
-          time: ""
-        };
-        io.to(socket.id).emit("receive_msg", error);
+        errorNotInLobby(newAdminUsername);
         return;
       }
 
