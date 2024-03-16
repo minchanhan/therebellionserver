@@ -34,6 +34,7 @@ class Game {
       MissionResult.None
     ];
     this.gameRound = 1;
+    this.playerRevealArr = [];
     // *** means reset before action
   };
 
@@ -240,6 +241,16 @@ class Game {
   addGameRound() {
     this.gameRound += 1;
   }
+
+  getPlayerRevealArr() {
+    return this.playerRevealArr;
+  }
+  addPlayerRevealArr(line) {
+    this.playerRevealArr.push(line);
+  }
+  clearPlayerRevealArr() {
+    this.playerRevealArr = [];
+  }
   
   /* Helpers */
   shuffle(array) {
@@ -269,6 +280,7 @@ class Game {
   /* Game Logic */
   randomizeSeatAndTeam() {
     this.clearSeats();
+    this.clearPlayerRevealArr();
     const goodTeamArr = this.fillArray(Team.Good, this.getCapacity() - this.getNumSpies());
     const badTeamArr = this.fillArray(Team.Bad, this.getNumSpies());
     var teamArr = goodTeamArr.concat(badTeamArr);
@@ -276,8 +288,10 @@ class Game {
     this.shuffle(this.getPlayers());
 
     for (let i = 0; i < this.getCapacity(); i++) {
+      const player = this.getPlayers()[i];
       this.setPlayerTeam(teamArr[i], i);
-      this.setSeat(this.getPlayers()[i], teamArr[i], false, false);
+      this.setSeat(player, teamArr[i], false, false);
+      this.addPlayerRevealArr(`${player.getUsername()} was ${player.getTeam() === "badTeam" ? "an evil spy" : "part of the rebellion"}`);
     }
   };
 
@@ -420,9 +434,52 @@ class Game {
     game.letLeaderSelect(game, io, leader.getId());
   };
 
-  endGame(game, io, win=true, disconnect=false, disconnectedPlayer="") {
+  sendAdminCommands (id, io) {
+    const msgData = {
+      msg: `Admins can kick players using \`/kick <username>\`
+      
+      Admins can transfer admin duties using \`/admin <username>\``,
+      sender: "THE UNIVERSE",
+      time: ""
+    };
+
+    io.to(id).emit("receive_msg", msgData); // send to CHATBOX
+  }
+
+  changeRoomAdmin(game, newAdminUsername, manualTransfer=true, io, socket) {
+    if (manualTransfer) game.getPlayerByUsername(socket.data.username, game.getSeats().length).setIsAdmin(false);
+    const newAdmin = game.getPlayerByUsername(newAdminUsername, game.getSeats().length);
+    newAdmin.setIsAdmin(true);
+
+    for (let i = 0; i < game.getPlayers().length; i++) {
+      const plrId = game.getPlayers()[i].getId();
+      io.to(plrId).emit("room_admin_changed", {
+        isAdmin: plrId === newAdmin.getId(), 
+        adminName: newAdminUsername
+      });
+    }
+
+    game.sendAdminCommands(newAdmin.getId(), io);
+    const adminTransferMsg = {
+      msg: `${newAdminUsername} has been made admin`,
+      sender: "THE UNIVERSE",
+      time: ""
+    };
+    io.to(socket.data.roomCode).emit("receive_msg", adminTransferMsg);
+    console.log("players now: ", game.getPlayers());
+  }
+
+  endGame(
+    game, 
+    io, 
+    win=true, 
+    disconnect=false, 
+    disconnectedPlayerId="", 
+    isAdmin=false, 
+    socket=null
+  ) {
+    game.setHasStarted(false);
     const roomCode = game.getRoomCode();
-    const players = game.getPlayers();
     const message = win ? "The Resistance Wins" : 
                     !disconnect ? "The Spies Win" : 
                     disconnect ? "Game Aborted Due to User Disconnect >:(" :
@@ -431,20 +488,18 @@ class Game {
     if (!disconnect) game.addGameRound();
     
     game.gameMasterSpeech(game, io, message);
-    
-    var playerRevealArr = [];
 
-    for (let i = 0; i < game.getCapacity(); i++) { //flag error, maybe only on !disconnect
-      const name = players[i].getUsername();
-      const team = players[i].getTeam();
-      playerRevealArr.push(`${name} was ${team === "badTeam" ? "an evil spy" : "part of the rebellion"}`);
-    };
-
-    io.to(roomCode).emit("set_game_end", { playerRevealArr: playerRevealArr, endMsg: "Game Over: " + message, kicked: false });
+    io.to(roomCode).emit("set_game_end", { 
+      playerRevealArr: game.getPlayerRevealArr(), 
+      endMsg: "Game Over: " + message, 
+      kicked: false 
+    });
 
     if (disconnect) {
-      game.removePlayer(disconnectedPlayer); // remove one player
+      game.removePlayer(disconnectedPlayerId); // remove one player
+      if (isAdmin) game.changeRoomAdmin(game, game.getPlayers()[0].getUsername(), false, io, socket);
     }
+
     game.sendSeatingInfo(io);
     console.log("Game ended, game info now: ", game);
   };

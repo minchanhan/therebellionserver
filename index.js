@@ -58,12 +58,15 @@ io.on("connection", (socket) => {
     if (game == null) return;
 
     if (game.getHasStarted()) { // In game, non lobby
-      game.endGame(game, io, false, true, socket.id);
+      game.endGame(game, io, false, true, socket.id, socket.data.isAdmin, socket);
     } else { // lobby
       if (game.getPlayers().length <= 1) {
         games.delete(roomCode); // no emit needed, there'll be nothing left
       } else {
-        game.removePlayer(socket.id); // remove one player
+        game.removePlayer(socket.id);
+        if (socket.data.isAdmin) {
+          game.changeRoomAdmin(game, game.getPlayers()[0].getUsername(), false, io, socket);
+        }
         game.sendSeatingInfo(io);
       }
     }
@@ -91,18 +94,6 @@ io.on("connection", (socket) => {
       privateRoom: game != null ? game.getPrivateRoom() : socket.data.privateRoom 
     });
   };
-
-  const sendAdminCommands = (id) => {
-    const msgData = {
-      msg: `Admins can kick players using \`/kick <username>\`
-      
-      Admins can transfer admin duties using \`/admin <username>\``,
-      sender: "THE UNIVERSE",
-      time: ""
-    };
-
-    io.to(id).emit("receive_msg", msgData); // send to CHATBOX
-  }
 
   socket.on("set_capacity", (capacity) => { // game settings
     socket.data.capacity = capacity;
@@ -205,7 +196,7 @@ io.on("connection", (socket) => {
       roomAdmin: game.getRoomAdmin() 
     });
 
-    sendAdminCommands(socket.id);
+    game.sendAdminCommands(socket.id, io);
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
@@ -285,26 +276,8 @@ io.on("connection", (socket) => {
         return;
       }
 
-      game.getPlayerByUsername(socket.data.username, game.getSeats().length).setIsAdmin(false);
-      const newAdmin = game.getPlayerByUsername(newAdminUsername, game.getSeats().length);
-      newAdmin.setIsAdmin(true);
-
-      for (let i = 0; i < game.getPlayers().length; i++) {
-        const plrId = game.getPlayers()[i].getId();
-        io.to(plrId).emit("room_admin_changed", {
-          isAdmin: plrId === newAdmin.getId(), 
-          adminName: newAdminUsername
-        });
-      }
-
-      sendAdminCommands(newAdmin.getId());
-      const adminTransferMsg = {
-        msg: `${newAdminUsername} has been made admin`,
-        sender: "THE UNIVERSE",
-        time: ""
-      };
-      io.to(socket.data.roomCode).emit("receive_msg", adminTransferMsg);
-      console.log("players now: ", game.getPlayers());
+      // player exists
+      game.changeRoomAdmin(game, newAdminUsername, true, io, socket);
       return;
     }
 
@@ -354,7 +327,6 @@ io.on("connection", (socket) => {
         game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
         if (game.getCurMissionVoteDisapproves() > 4) {
           game.endGame(game, io, false);
-          game.setHasStarted(false);
           return;
         }
         const revoteSpeech = `I see, you do not trust ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)}
@@ -384,11 +356,9 @@ io.on("connection", (socket) => {
 
       if (game.getMissionPasses() === 3) {
         game.endGame(game, io, true);
-        game.setHasStarted(false);
         return;
       } else if (game.getMissionFails() === 3) {
         game.endGame(game, io, false);
-        game.setHasStarted(false);
         return;
       }
 
