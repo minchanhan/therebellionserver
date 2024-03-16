@@ -47,7 +47,7 @@ io.on("connection", (socket) => {
 
   // DISCONNECT
   socket.on("disconnect", () => {
-    console.log(`User Disconnected: ${socket.id}`); //
+    console.log(`User Disconnected: ${socket.id}`);
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
 
@@ -91,6 +91,18 @@ io.on("connection", (socket) => {
       privateRoom: game != null ? game.getPrivateRoom() : socket.data.privateRoom 
     });
   };
+
+  const sendAdminCommands = (id) => {
+    const msgData = {
+      msg: `Admins can kick players using \`/kick <username>\`
+      
+      Admins can transfer admin duties using \`/admin <username>\``,
+      sender: "THE UNIVERSE",
+      time: ""
+    };
+
+    io.to(id).emit("receive_msg", msgData); // send to CHATBOX
+  }
 
   socket.on("set_capacity", (capacity) => { // game settings
     socket.data.capacity = capacity;
@@ -192,6 +204,8 @@ io.on("connection", (socket) => {
       room: data.roomCode, 
       roomAdmin: game.getRoomAdmin() 
     });
+
+    sendAdminCommands(socket.id);
   });
 
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
@@ -226,6 +240,75 @@ io.on("connection", (socket) => {
 
   // MESSAGES
   socket.on("send_msg", (msgData) => {
+    const game = games.get(socket.data.roomCode);
+    const msgLen = msgData.msg.length;
+
+    if (msgData.msg.slice(0, 5) === "/kick" && !game.getHasStarted() && socket.data.isAdmin) {
+      const kickedUsername = msgData.msg.slice(6, msgLen);
+      if (kickedUsername === socket.data.username) return;
+      if (!checkNameDupes(kickedUsername, game.getPlayers().length, game)) {
+        var error = {
+          msg: `${kickedUsername} not in lobby, try removing extra spaces in this command?`,
+          sender: "THE UNIVERSE",
+          time: ""
+        };
+        io.to(socket.id).emit("receive_msg", error);
+        return;
+      }
+      
+      const kickedPlayerId = game.getPlayerByUsername(kickedUsername, game.getSeats().length).getId();
+      game.removePlayer(kickedPlayerId);
+      game.sendSeatingInfo(io);
+
+      const kickMsg = {
+        msg: `${kickedUsername} has been kicked by admin`,
+        sender: "THE UNIVERSE",
+        time: ""
+      };
+      io.to(socket.data.roomCode).emit("receive_msg", kickMsg);
+      io.to(kickedPlayerId).emit("kicked_player");
+      io.to(kickedPlayerId).emit("set_game_end", { playerRevealArr: [], endMsg: "", kicked: true });
+      console.log("players now: ", game.getPlayers());
+      return;
+    }
+
+    if (msgData.msg.slice(0, 6) === "/admin" && !game.getHasStarted() && socket.data.isAdmin) {
+      const newAdminUsername = msgData.msg.slice(7, msgLen);
+      if (newAdminUsername === socket.data.username) return;
+
+      if (!checkNameDupes(newAdminUsername, game.getPlayers().length, game)) {
+        const error = {
+          msg: `${newAdminUsername} not in lobby, try removing extra spaces in this command?`,
+          sender: "THE UNIVERSE",
+          time: ""
+        };
+        io.to(socket.id).emit("receive_msg", error);
+        return;
+      }
+
+      game.getPlayerByUsername(socket.data.username, game.getSeats().length).setIsAdmin(false);
+      const newAdmin = game.getPlayerByUsername(newAdminUsername, game.getSeats().length);
+      newAdmin.setIsAdmin(true);
+
+      for (let i = 0; i < game.getPlayers().length; i++) {
+        const plrId = game.getPlayers()[i].getId();
+        io.to(plrId).emit("room_admin_changed", {
+          isAdmin: plrId === newAdmin.getId(), 
+          adminName: newAdminUsername
+        });
+      }
+
+      sendAdminCommands(newAdmin.getId());
+      const adminTransferMsg = {
+        msg: `${newAdminUsername} has been made admin`,
+        sender: "THE UNIVERSE",
+        time: ""
+      };
+      io.to(socket.data.roomCode).emit("receive_msg", adminTransferMsg);
+      console.log("players now: ", game.getPlayers());
+      return;
+    }
+
     // send back to all clients in room
     socket.to(socket.data.roomCode).emit("receive_msg", msgData);
   });

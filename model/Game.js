@@ -440,7 +440,7 @@ class Game {
       playerRevealArr.push(`${name} was ${team === "badTeam" ? "an evil spy" : "part of the rebellion"}`);
     };
 
-    io.to(roomCode).emit("set_game_end", { playerRevealArr: playerRevealArr, endMsg: "Game Over: " + message });
+    io.to(roomCode).emit("set_game_end", { playerRevealArr: playerRevealArr, endMsg: "Game Over: " + message, kicked: false });
 
     if (disconnect) {
       game.removePlayer(disconnectedPlayer); // remove one player
