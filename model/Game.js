@@ -384,7 +384,6 @@ class Game {
   };
 
   resetGameStates(game) {
-    console.log("resetting game states");
     game.resetMission();
     game.clearCurVoteTally();
     game.clearMissionResult();
@@ -466,7 +465,6 @@ class Game {
       time: ""
     };
     io.to(socket.data.roomCode).emit("receive_msg", adminTransferMsg);
-    console.log("players now: ", game.getPlayers());
   }
 
   endGame(
@@ -501,7 +499,6 @@ class Game {
     }
 
     game.sendSeatingInfo(io);
-    console.log("Game ended, game info now: ", game);
   };
 }
 

@@ -70,19 +70,15 @@ io.on("connection", (socket) => {
         game.sendSeatingInfo(io);
       }
     }
-
-    console.log("games: ", games); //
   });
 
   // DATA //
   socket.on("set_username", (username) => {
     socket.data.username = username;
-    console.log("username set: ", username);
   });
 
   socket.on("set_room_admin", (isAdmin) => {
     socket.data.isAdmin = isAdmin;
-    console.log("isAdmin set: ", isAdmin);
   });
 
   const sendUpdateGameSettings = (roomCode) => {
@@ -99,21 +95,18 @@ io.on("connection", (socket) => {
     socket.data.capacity = capacity;
     games.get(socket.data.roomCode)?.setCapacity(capacity);
     games.get(socket.data.roomCode)?.setNumSpies(capacity);
-    console.log("capacity set: ", capacity);
     sendUpdateGameSettings(socket.data.roomCode);
   });
 
   socket.on("set_selection_time", (selectionTime) => { // game settings
     socket.data.selectionTime = selectionTime;
     games.get(socket.data.roomCode)?.setSelectionTime(selectionTime);
-    console.log("selection time set: ", selectionTime);
     sendUpdateGameSettings(socket.data.roomCode);
   });
 
   socket.on("set_private", (privateRoom) => { // game settings
     socket.data.privateRoom = privateRoom;
     games.get(socket.data.roomCode)?.setPrivateRoom(privateRoom);
-    console.log("private room set: ", privateRoom);
     sendUpdateGameSettings(socket.data.roomCode);
   });
 
@@ -263,7 +256,6 @@ io.on("connection", (socket) => {
       io.to(socket.data.roomCode).emit("receive_msg", kickMsg);
       io.to(kickedPlayerId).emit("kicked_player");
       io.to(kickedPlayerId).emit("set_game_end", { playerRevealArr: [], endMsg: "", kicked: true });
-      console.log("players now: ", game.getPlayers());
       return;
     }
 
@@ -377,7 +369,7 @@ io.on("connection", (socket) => {
 
   // JUST FOR TESTING //
   socket.on("checkGames", () => { // on msg send
-    console.log("games: ", games);
+    //
   });
 });
 
