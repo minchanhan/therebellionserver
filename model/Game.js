@@ -342,7 +342,7 @@ class Game {
     
     // send out msg
     const speech = `Very well, soldiers, please approve or disapprove ${selectedMembers.join(', ')} carrying \
-    out mission ${game.mission}`;
+    out mission ${game.mission}. `;
     game.gameMasterSpeech(game, io, speech);
   };
 
@@ -359,7 +359,7 @@ class Game {
     game.setCurMissionVoteDisapproves(0); // Reset vote count
     const startMissionSpeech = `The vote has been approved, we begin our mission now.
     ${selectedPlayers.slice(0, -1).join(', ')} and ${selectedPlayers.slice(-1)} please
-    make a decision, PASS or FAIL this mission. (Resistance members must choose pass...)`;
+    make a decision, PASS or FAIL this mission. (Resistance members must choose pass...). `;
     game.gameMasterSpeech(game, io, startMissionSpeech);
   }
 
@@ -377,7 +377,7 @@ class Game {
     io.to(game.getRoomCode()).emit("vote_track", game.getCurMissionVoteDisapproves());
 
     const newLeaderSpeech = `We proceed. The new leader is ${leader.getUsername()}. \
-    ${leader.getUsername()}, please choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}`;
+    ${leader.getUsername()}, please choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}. `;
 
     game.gameMasterSpeech(game, io, resultSpeech + newLeaderSpeech);
     game.letLeaderSelect(game, io, leader.getId());
@@ -423,10 +423,11 @@ class Game {
     game.sendSeatingInfo(io);
 
     // start missions
-    const welcomeMsg = `Welcome soldiers, I am Captain X, thank you for joining the resistance. \
-    We are well on our way to overthrow the capital. However, I am aware of ${game.getNumSpies()} spies among us.. \
-    Please beware and smoke them out. For now, we start our first mission. I am appointing ${leader.getUsername()} as the leader. \
-    ${leader.getUsername()}, please choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}`;
+    const welcomeMsg = `Welcome soldiers, thank you for joining the resistance. \
+    We need 3 missions successes to overthrow the capital. However, I am aware of ${game.getNumSpies()} spies among us... \
+
+    We start our first mission. ${leader.getUsername()} will be the leader. \
+    ${leader.getUsername()}, choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}`;
     game.gameMasterSpeech(game, io, welcomeMsg);
     // set timer
     // give leader powers, assign it the start

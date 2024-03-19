@@ -355,9 +355,9 @@ io.on("connection", (socket) => {
       }
 
       // If still going, then keep going with mission      
-      const missionResultSpeech = missionPassed ? `Well done my soliders. We have passed the mission successfully. We have \
-      ${3 - game.getMissionPasses()} left before we complete the overthrowing. ` : `This isn't good... we have failed this mission... \
-      Just ${3 - game.getMissionFails()} more failed missions and our plans of overthrowing the power is ruined. `;
+      const missionResultSpeech = missionPassed ? `Well done soliders. The mission has passed. We have \
+      ${3 - game.getMissionPasses()} left before we complete the overthrowing. ` : `This isn't good... we failed the mission... \
+      ${3 - game.getMissionFails()} failed missions remain before plans of overthrowing the power is ruined. `;
 
       io.in(info.room).emit("mission_completed", { 
         mission: game.getMission(), 
