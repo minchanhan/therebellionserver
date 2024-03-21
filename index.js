@@ -259,7 +259,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (msgData.msg.slice(0, 6) === "/admin" && !game.getHasStarted() && socket.data.isAdmin) {
+    if (msgData.msg.slice(0, 6) === "/admin" && socket.data.isAdmin) {
       const newAdminUsername = msgData.msg.slice(7, msgLen);
       if (newAdminUsername === socket.data.username) return;
 
