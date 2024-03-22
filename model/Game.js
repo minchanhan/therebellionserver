@@ -430,11 +430,10 @@ class Game {
     game.sendSeatingInfo(io);
 
     // start missions
-    const welcomeMsg = `Welcome soldiers, thank you for joining the resistance. \
-    We need 3 missions successes to overthrow the capital. However, I am aware of ${game.getNumSpies()} spies among us... \
-
-    We start our first mission. ${leader.getUsername()} will be the leader. \
-    ${leader.getUsername()}, choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}`;
+    const welcomeMsg = `Welcome to the resistance.
+    We need 3 mission successes to overthrow the capital. However, there are ${game.getNumSpies()} spies among us,
+    please be aware. We start our first mission. ${leader.getUsername()} will be the leader.
+    ${leader.getUsername()}, choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}. `;
     game.gameMasterSpeech(game, io, welcomeMsg);
     // set timer
     // give leader powers, assign it the start
