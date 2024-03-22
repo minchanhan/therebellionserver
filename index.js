@@ -147,6 +147,13 @@ io.on("connection", (socket) => {
       room: roomCode, 
       roomAdmin: game.getRoomAdmin() 
     });
+
+    const joinMsg = {
+      msg: `${username} has joined game`,
+      sender: "THE UNIVERSE",
+      time: ""
+    };
+    socket.to(roomCode).emit("receive_msg", joinMsg);
   };
 
   const setAndReturnUniqueName = (game) => {
