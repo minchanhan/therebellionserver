@@ -57,6 +57,13 @@ io.on("connection", (socket) => {
 
     if (game == null) return;
 
+    const byeMsg = {
+      msg: `${game.getPlayerById(socket.id, game.getPlayers().length).getUsername()} has disconnected`,
+      sender: "THE UNIVERSE",
+      time: ""
+    };
+    io.to(roomCode).emit("receive_msg", byeMsg);
+
     if (game.getHasStarted()) { // In game, non lobby
       game.endGame(game, io, false, true, socket.id, socket.data.isAdmin, socket);
     } else { // lobby

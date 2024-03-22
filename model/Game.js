@@ -70,6 +70,13 @@ class Game {
       }
     }
   }
+  getPlayerById(id, numPlayers) {
+    for (let i = 0; i < numPlayers; i++) {
+      if (this.getPlayerId(i) === id) {
+        return this.getPlayers()[i];
+      }
+    }
+  }
   getPlayerTeam(index) {
     return this.players[index].getTeam();
   }
