@@ -192,7 +192,7 @@ io.on("connection", (socket) => {
 
     socket.join(roomCode);
 
-    const game = new Game(roomCode, [player], 5, true, 7, false); // default cap = 5, priv = true, selTime = 7
+    const game = new Game(roomCode, [player], 6, true, 7, false);
     games.set(roomCode, game);
     game.setSeat(player, Team.Unknown, false, false);
 
