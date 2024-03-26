@@ -1,1 +1,1 @@
-server stuff for resistance
+server stuff for therebellion

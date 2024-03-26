@@ -397,9 +397,9 @@ class Game {
     }
 
     game.setCurMissionVoteDisapproves(0); // Reset vote count
-    const startMissionSpeech = `The vote has been approved, we begin our mission now.
+    const startMissionSpeech = `The vote has been approved, we begin our mission.
     ${selectedPlayers.slice(0, -1).join(', ')} and ${selectedPlayers.slice(-1)} please
-    make a decision, PASS or FAIL this mission. (Resistance members must choose pass...). `;
+    make a decision, PASS or FAIL. (Rebellion members must pass, spies can choose either). `;
     game.gameMasterSpeech(game, io, startMissionSpeech);
   }
 
@@ -463,7 +463,7 @@ class Game {
     game.sendSeatingInfo(io);
 
     // start missions
-    const welcomeMsg = `Welcome to the resistance.
+    const welcomeMsg = `Welcome to the rebellion.
     We need 3 mission successes to overthrow the capital. However, there are ${game.getNumSpies()} spies among us,
     please be aware. We start our first mission. ${leader.getUsername()} will be the leader.
     ${leader.getUsername()}, choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}. `;
@@ -518,7 +518,7 @@ class Game {
   ) {
     game.setHasStarted(false);
     const roomCode = game.getRoomCode();
-    const message = win ? "The Resistance Wins" : 
+    const message = win ? "The Rebellion Wins" : 
                     !disconnect ? "The Spies Win" : 
                     disconnect ? "Game Aborted Due to User Disconnect >:(" :
                     "Game Over";
