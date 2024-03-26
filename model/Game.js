@@ -35,6 +35,7 @@ class Game {
     ];
     this.gameRound = 1;
     this.playerRevealArr = [];
+    this.timerSeconds = selectionTime * 60;
     // *** means reset before action
   };
 
@@ -258,6 +259,10 @@ class Game {
   clearPlayerRevealArr() {
     this.playerRevealArr = [];
   }
+
+  setTimerSeconds(selectionTime) {
+    this.timerSeconds = selectionTime * 60;
+  }
   
   /* Helpers */
   shuffle(array) {
@@ -283,6 +288,30 @@ class Game {
       }
     }
   }
+
+  startTimer(io) {
+    let interval = setInterval(() => {
+      if (this.timerSeconds > 0) {
+        this.timerSeconds = this.timerSeconds - 1;
+      } else {
+        var randomSelection = [];
+        var randomOrder = [...Array(this.capacity).keys()];
+        this.shuffle(randomOrder);
+
+        if (this.hasStarted) {
+          for (let i = 0; i < this.missionTeamSizes[this.mission - 1]; i++) {
+            randomSelection.push(this.players[randomOrder[i]]?.getUsername());
+          }
+  
+          this.handleVote(this, io, randomSelection, this.roomCode, true);
+          this.setTimerSeconds(this.selectionTime);
+        }
+        
+        clearInterval(interval);
+        interval = 0;
+      }
+    }, 1000);
+  };
 
   /* Game Logic */
   randomizeSeatAndTeam() {
@@ -328,11 +357,13 @@ class Game {
   letLeaderSelect(game, io, leaderId) {
     for (let i = 0; i < game.getCapacity(); i++) {
       var playerId = game.getPlayers()[i].getId();
-      io.to(playerId).emit("leader_is_selecting", playerId === leaderId);
+      io.to(playerId).emit("leader_is_selecting", { isSelecting: playerId === leaderId, mins: game.getSelectionTime()});
     }
+
+    game.startTimer(io);
   };
 
-  handleVote(game, io, selectedMembers, room) {
+  handleVote(game, io, selectedMembers, room, random=false) {
     const cap = game.getCapacity();
     var seats = game.getSeats();
 
@@ -344,12 +375,14 @@ class Game {
       }
     }
 
-    game.sendSeatingInfo(io)
+    game.sendSeatingInfo(io);
     io.in(room).emit("vote_on_these_players", { selectedPlayers: selectedMembers });
     
     // send out msg
-    const speech = `Very well, soldiers, please approve or disapprove ${selectedMembers.join(', ')} carrying \
-    out mission ${game.mission}. `;
+    const speech = !random ? `Very well, soldiers, please approve or disapprove ${selectedMembers.join(', ')} carrying \
+    out mission ${game.mission}. ` : `Tsk tsk indecisive.. Allow me to randomly suggest members for this mission then. \
+    Please approve or disapprove ${selectedMembers.join(', ')} for mission ${game.mission}. `;
+    
     game.gameMasterSpeech(game, io, speech);
   };
 

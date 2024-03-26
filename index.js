@@ -108,6 +108,7 @@ io.on("connection", (socket) => {
   socket.on("set_selection_time", (selectionTime) => { // game settings
     socket.data.selectionTime = selectionTime;
     games.get(socket.data.roomCode)?.setSelectionTime(selectionTime);
+    games.get(socket.data.roomCode)?.setTimerSeconds(selectionTime);
     sendUpdateGameSettings(socket.data.roomCode);
   });
 
