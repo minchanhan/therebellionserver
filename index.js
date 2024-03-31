@@ -163,10 +163,14 @@ io.on("connection", (socket) => {
     var isDuplicate = false;
     while (checkNameDupes(socket.data.username, game.getPlayers().length, game)) {
       numDuplicates += 1;
-      if (isDuplicate) {
+      if (isDuplicate) { // duplicate of a duplicate lol
         socket.data.username = socket.data.username.slice(0, -1);
       }
-      socket.data.username = socket.data.username + numDuplicates;
+      if (socket.data.username.length < 9) {
+        socket.data.username = socket.data.username + numDuplicates;
+      } else {
+        socket.data.username = socket.data.username.slice(0, -1) + numDuplicates;
+      }
       isDuplicate = true;
     }
     return socket.data.username;
