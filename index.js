@@ -108,7 +108,7 @@ io.on("connection", (socket) => {
   socket.on("set_selection_time", (selectionTime) => { // game settings
     socket.data.selectionTime = selectionTime;
     games.get(socket.data.roomCode)?.setSelectionTime(selectionTime);
-    games.get(socket.data.roomCode)?.setTimerSeconds(selectionTime);
+    games.get(socket.data.roomCode)?.setTimerSeconds(selectionTime * 60);
     sendUpdateGameSettings(socket.data.roomCode);
   });
 
@@ -306,6 +306,7 @@ io.on("connection", (socket) => {
 
   socket.on("selected_players_for_vote", (info) => { // 1
     const game = games.get(info.roomCode);
+    game.setLeaderSelectedTeam(true);
     game.handleVote(game, io, info.selectedPlayers, info.roomCode);
   });
 

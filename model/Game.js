@@ -36,6 +36,7 @@ class Game {
     this.gameRound = 1;
     this.playerRevealArr = [];
     this.timerSeconds = selectionTime * 60;
+    this.leaderSelectedTeam = false;
     // *** means reset before action
   };
 
@@ -260,8 +261,15 @@ class Game {
     this.playerRevealArr = [];
   }
 
-  setTimerSeconds(selectionTime) {
-    this.timerSeconds = selectionTime * 60;
+  setTimerSeconds(timerSeconds) {
+    this.timerSeconds = timerSeconds;
+  }
+
+  getLeaderSelectedTeam() {
+    return this.leaderSelectedTeam;
+  }
+  setLeaderSelectedTeam(leaderSelectedTeam) {
+    this.leaderSelectedTeam = leaderSelectedTeam;
   }
   
   /* Helpers */
@@ -291,25 +299,27 @@ class Game {
 
   startTimer(io) {
     let interval = setInterval(() => {
-      if (this.timerSeconds > 0) {
-        this.timerSeconds = this.timerSeconds - 1;
-      } else {
-        var randomSelection = [];
-        var randomOrder = [...Array(this.capacity).keys()];
-        this.shuffle(randomOrder);
-
-        if (this.hasStarted) {
-          for (let i = 0; i < this.missionTeamSizes[this.mission - 1]; i++) {
-            randomSelection.push(this.players[randomOrder[i]]?.getUsername());
-          }
-  
-          this.handleVote(this, io, randomSelection, this.roomCode, true);
-          this.setTimerSeconds(this.selectionTime);
-        }
-        
+      if (this.leaderSelectedTeam) {
         clearInterval(interval);
-        interval = 0;
-      }
+        return;
+      } else {
+        if (this.timerSeconds > 0) {
+          this.timerSeconds = this.timerSeconds - 1;
+        } else {
+          var randomSelection = [];
+          var randomOrder = [...Array(this.capacity).keys()];
+          this.shuffle(randomOrder);
+  
+          if (this.hasStarted) {
+            for (let i = 0; i < this.missionTeamSizes[this.mission - 1]; i++) {
+              randomSelection.push(this.players[randomOrder[i]]?.getUsername());
+            }
+    
+            this.handleVote(this, io, randomSelection, this.roomCode, true);
+          }
+          clearInterval(interval);
+        }
+      } 
     }, 1000);
   };
 
@@ -358,6 +368,8 @@ class Game {
   };
 
   letLeaderSelect(game, io, leaderId) {
+    game.setLeaderSelectedTeam(false);
+    game.setTimerSeconds(game.getSelectionTime() * 60);
     for (let i = 0; i < game.getCapacity(); i++) {
       var playerId = game.getPlayers()[i].getId();
       io.to(playerId).emit("leader_is_selecting", { isSelecting: playerId === leaderId, mins: game.getSelectionTime()});
