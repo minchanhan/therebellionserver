@@ -190,8 +190,8 @@ io.on("connection", (socket) => {
   // ROOMS //
   socket.on("create_room", () => {
     // create room code
-    var data = socket.data;
-    var player = newPlayer(data.username, true);
+    const username = socket.data.username;
+    var player = newPlayer(username, true);
     const roomCode = generateRoomCode();
     socket.data.roomCode = roomCode;
 
@@ -201,10 +201,10 @@ io.on("connection", (socket) => {
     games.set(roomCode, game);
     game.setSeat(player, Team.Unknown, false, false);
 
-    console.log(`User ${data.username} with id: ${socket.id} created room ${data.roomCode}`); //
+    console.log(`User ${username} with id: ${socket.id} created room ${roomCode}`); //
     io.to(roomCode).emit("player_joined_lobby", { 
       seats: game.getSeats(), 
-      room: data.roomCode, 
+      room: roomCode, 
       roomAdmin: game.getRoomAdmin() 
     });
 
@@ -227,12 +227,14 @@ io.on("connection", (socket) => {
     }
 
     if (games.has(roomCode)) {
-      if (!games.get(roomCode).getHasStarted()) { // game hasn't started
+      const existingGame = games.get(roomCode);
+      const fullGame = existingGame.getPlayers().length >= existingGame.getCapacity();
+      if (!fullGame) {
         socket.emit("room_with_code", { exists: true, reason: "" });
-        var game = games.get(roomCode);
+        var game = existingGame;
         handlePlayerJoin(socket.id, roomCode, game, io);
       } else {
-        socket.emit("room_with_code", { exists: false, reason: "Game has already started" });
+        socket.emit("room_with_code", { exists: false, reason: "Game is full" });
         return;
       }
     } else {
