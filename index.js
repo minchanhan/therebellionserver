@@ -305,12 +305,12 @@ io.on("connection", (socket) => {
   });
 
   socket.on("selected_players_for_vote", (info) => { // 1
-    const game = games.get(info.room);
-    game.handleVote(game, io, info.selectedPlayers, info.room);
+    const game = games.get(info.roomCode);
+    game.handleVote(game, io, info.selectedPlayers, info.roomCode);
   });
 
   socket.on("vote_is_in", (info) => { // 2
-    const game = games.get(info.room);
+    const game = games.get(info.roomCode);
     const voter = info.username;
     game.setCurVoteTally(info.approve, voter);
 
@@ -331,7 +331,7 @@ io.on("connection", (socket) => {
         time: `Mission ${game.getMission()}, Vote ${game.getCurMissionVoteDisapproves() + 1}`
       };
 
-      io.to(info.room).emit("receive_msg", msgData); // send public tally to CHATBOX THIS TIME
+      io.to(info.roomCode).emit("receive_msg", msgData); // send public tally to CHATBOX THIS TIME
     
       if (voteApproved) {
         // commence mission
@@ -351,7 +351,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("mission_result_is_in", (info) => {
-    const game = games.get(info.room);
+    const game = games.get(info.roomCode);
     game.setMissionResult(info.pass);
     const passes = game.getMissionResult()[0];
     const fails = game.getMissionResult()[1];
@@ -380,7 +380,7 @@ io.on("connection", (socket) => {
       ${3 - game.getMissionPasses()} left before we complete the overthrowing. ` : `This isn't good... we failed the mission... \
       ${3 - game.getMissionFails()} failed missions remain before plans of overthrowing the power is ruined. `;
 
-      io.in(info.room).emit("mission_completed", { 
+      io.in(info.roomCode).emit("mission_completed", { 
         mission: game.getMission(), 
         missionResultTrack: game.getMissionResultTrack() 
       });
