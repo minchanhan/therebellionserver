@@ -387,11 +387,6 @@ io.on("connection", (socket) => {
       game.changeLeader(game, io, missionResultSpeech); // change leader
     }
   });
-
-  // JUST FOR TESTING //
-  socket.on("checkGames", () => { // on msg send
-    //
-  });
 });
 
 server.listen(process.env.PORT, () => {
