@@ -327,7 +327,10 @@ class Game {
       const player = this.getPlayers()[i];
       this.setPlayerTeam(teamArr[i], i);
       this.setSeat(player, teamArr[i], false, false);
-      this.addPlayerRevealArr(`${player.getUsername()} was ${player.getTeam() === "badTeam" ? "an evil spy" : "part of the rebellion"}`);
+      this.addPlayerRevealArr([
+        `${player.getUsername()} was ${player.getTeam() === "badTeam" ? "an evil spy" : "part of the rebellion"}`,
+        player.getTeam()
+      ]);
     }
   };
 
