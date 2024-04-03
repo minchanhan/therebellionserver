@@ -493,7 +493,7 @@ class Game {
       msg: `Admins can kick players using \`/kick <username>\`
       
       Admins can transfer admin duties using \`/admin <username>\``,
-      sender: "THE UNIVERSE",
+      sender: "ADMIN INFO",
       time: ""
     };
 
@@ -516,7 +516,7 @@ class Game {
     game.sendAdminCommands(newAdmin.getId(), io);
     const adminTransferMsg = {
       msg: `${newAdminUsername} has been made admin`,
-      sender: "THE UNIVERSE",
+      sender: "PLAYER UPDATE",
       time: ""
     };
     io.to(socket.data.roomCode).emit("receive_msg", adminTransferMsg);

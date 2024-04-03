@@ -59,7 +59,7 @@ io.on("connection", (socket) => {
 
     const byeMsg = {
       msg: `${game.getPlayerById(socket.id, game.getPlayers().length).getUsername()} has disconnected`,
-      sender: "THE UNIVERSE",
+      sender: "PLAYER UPDATE",
       time: ""
     };
     io.to(roomCode).emit("receive_msg", byeMsg);
@@ -151,7 +151,7 @@ io.on("connection", (socket) => {
 
     const joinMsg = {
       msg: `${username} has joined game`,
-      sender: "THE UNIVERSE",
+      sender: "PLAYER UPDATE",
       time: ""
     };
     socket.to(roomCode).emit("receive_msg", joinMsg);
@@ -247,7 +247,7 @@ io.on("connection", (socket) => {
   const errorNotInLobby = (username) => {
     const error = {
       msg: `${username} not in lobby, try removing extra spaces in this command?`,
-      sender: "THE UNIVERSE",
+      sender: "ADMIN INFO",
       time: ""
     };
     io.to(socket.id).emit("receive_msg", error);
@@ -270,8 +270,8 @@ io.on("connection", (socket) => {
       game.sendSeatingInfo(io);
 
       const kickMsg = {
-        msg: `${kickedUsername} has been kicked by admin`,
-        sender: "THE UNIVERSE",
+        msg: `${kickedUsername} was kicked by admin`,
+        sender: "PLAYER UPDATE",
         time: ""
       };
       io.to(socket.data.roomCode).emit("receive_msg", kickMsg);
