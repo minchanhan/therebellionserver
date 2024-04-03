@@ -44,11 +44,11 @@ var games = new Map();
 // SOCKET SETUP //
 io.on("connection", (socket) => {
   // CONNECTION
-  console.log(`User Connected: ${socket.id}`); //
+  // console.log(`User Connected: ${socket.id}`); //
 
   // DISCONNECT
   socket.on("disconnect", () => {
-    console.log(`User Disconnected: ${socket.id}`);
+    // console.log(`User Disconnected: ${socket.id}`);
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
 
@@ -138,7 +138,7 @@ io.on("connection", (socket) => {
     var player = newPlayer(username, false);
     socket.data.isAdmin = false;
     game.addPlayer(player);
-    console.log(`User ${username} with id: ${id} joined room ${roomCode}`); //
+    // console.log(`User ${username} with id: ${id} joined room ${roomCode}`); //
     io.to(id).emit("final_username_set", username);
   
     game.setSeat(player, Team.Unknown, false, false);
@@ -201,7 +201,7 @@ io.on("connection", (socket) => {
     games.set(roomCode, game);
     game.setSeat(player, Team.Unknown, false, false);
 
-    console.log(`User ${username} with id: ${socket.id} created room ${roomCode}`); //
+    // console.log(`User ${username} with id: ${socket.id} created room ${roomCode}`); //
     io.to(roomCode).emit("player_joined_lobby", { 
       seats: game.getSeats(), 
       room: roomCode, 
@@ -391,6 +391,6 @@ io.on("connection", (socket) => {
 });
 
 server.listen(process.env.PORT, () => {
-  console.log(`Server is running on port ${process.env.PORT}..`);
+  // console.log(`Server is running on port ${process.env.PORT}..`);
 });
 

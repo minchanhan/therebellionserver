@@ -465,7 +465,6 @@ class Game {
     game.setMissionTeamSizes([teamSize1, teamSize2, teamSize3, teamSize4, teamSize5]);
 
     // randomize teams
-    console.log("Game is starting, about to randomize seat and teams"); //
     game.randomizeSeatAndTeam();
     game.sendSeatingInfo(io);
 
