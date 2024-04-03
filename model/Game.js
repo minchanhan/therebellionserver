@@ -482,6 +482,13 @@ class Game {
     please be aware. We start our first mission. ${leader.getUsername()} will be the leader.
     ${leader.getUsername()}, choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}. `;
     game.gameMasterSpeech(game, io, welcomeMsg);
+
+    const randomizeMsg = {
+      msg: "Teams & seats have been randomized",
+      sender: "PLAYER UPDATE",
+      time: ""
+    };
+    io.to(game.getRoomCode()).emit("receive_msg", randomizeMsg);
     // set timer
     // give leader powers, assign it the start
     game.letLeaderSelect(game, io, leader.getId());
