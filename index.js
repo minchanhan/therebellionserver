@@ -12,7 +12,13 @@ const VoteStatus = require("./Enums/VoteStatus.js");
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+const corsOptions = {
+  origin: ["https://therebelliongame.com", "https://www.therebelliongame.com"], 
+  credentials:true,
+  optionSuccessStatus:200
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ extended: false }));
 app.get('/', (req, res) => {
   res.send('Server is running :)');
