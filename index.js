@@ -14,8 +14,8 @@ dotenv.config();
 const app = express();
 const corsOptions = {
   origin: ["https://therebelliongame.com", "https://www.therebelliongame.com"], 
-  credentials:true,
-  optionSuccessStatus:200
+  credentials: true,
+  optionSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
@@ -28,7 +28,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, { // for work with socket.io
   cors: {
-    origin: ["https://therebelliongame.com", "https://www.therebelliongame.com"], // client
+    origin: ["https://therebelliongame.com", "https://www.therebelliongame.com"], // client,
+    credentials: true,
     methods: ["GET", "POST"]
   },
   connectionStateRecovery: {
