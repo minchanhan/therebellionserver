@@ -14,6 +14,9 @@ dotenv.config();
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ extended: false }));
+app.get('/', (req, res) => {
+  res.send('Server is running :)');
+});
 
 const server = http.createServer(app);
 
