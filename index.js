@@ -13,7 +13,12 @@ dotenv.config();
 
 const app = express();
 const corsOptions = {
-  origin: ["https://therebelliongame.com", "https://www.therebelliongame.com"], 
+  origin: [
+    "https://therebelliongame.com", 
+    "https://www.therebelliongame.com",
+    "https://therebelliongame.onrender.com",
+    "https://www.therebelliongame.onrender.com"
+  ], 
   credentials: true,
   optionSuccessStatus: 200
 };
