@@ -22,6 +22,10 @@ const io = new Server(server, { // for work with socket.io
     origin: ["http://localhost:3000"], // client
     methods: ["GET", "POST"]
   },
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000, // 2 mins backup
+    skipMiddlewares: true,
+  }
 });
 
 // Generic Helpers
