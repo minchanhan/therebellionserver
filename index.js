@@ -12,13 +12,15 @@ const VoteStatus = require("./Enums/VoteStatus.js");
 dotenv.config();
 
 const app = express();
+const originsList = [
+  "https://therebelliongame.com", 
+  "https://www.therebelliongame.com",
+  "https://therebelliongame.onrender.com",
+  "https://www.therebelliongame.onrender.com"
+];
+
 const corsOptions = {
-  origin: [
-    "https://therebelliongame.com", 
-    "https://www.therebelliongame.com",
-    "https://therebelliongame.onrender.com",
-    "https://www.therebelliongame.onrender.com"
-  ], 
+  origin: originsList, 
   credentials: true,
   optionSuccessStatus: 200
 };
@@ -33,7 +35,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, { // for work with socket.io
   cors: {
-    origin: ["https://therebelliongame.com", "https://www.therebelliongame.com"], // client,
+    origin: originsList,
     credentials: true,
     methods: ["GET", "POST"]
   },
