@@ -79,7 +79,7 @@ io.on("connection", (socket) => {
     if (game == null) return;
 
     const byeMsg = {
-      msg: `${game.getPlayerById(socket.id, game.getPlayers().length).getUsername()} has disconnected`,
+      msg: `${game.getPlayerById(socket.id, game.getPlayers().length)?.getUsername()} has disconnected`,
       sender: "PLAYER UPDATE",
       time: ""
     };
