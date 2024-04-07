@@ -16,7 +16,8 @@ const app = express();
 const corsOptions = {
   origin: "https://therebelliongame.com", 
   credentials: true,
-  optionSuccessStatus: 200
+  optionSuccessStatus: 200,
+  methods: ["GET", "POST"]
 };
 
 app.use(cors(corsOptions));
@@ -28,11 +29,7 @@ app.get('/', (req, res) => {
 const server = http.createServer(app);
 
 const io = new Server(server, { // for work with socket.io
-  cors: {
-    origin: "https://therebelliongame.com",
-    credentials: true,
-    methods: ["GET", "POST"]
-  },
+  cors: corsOptions,
   connectionStateRecovery: {
     maxDisconnectionDuration: 2 * 60 * 1000, // 2 mins backup
     skipMiddlewares: true,
