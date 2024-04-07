@@ -29,7 +29,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, { // for work with socket.io
   cors: {
-    origin: originsList,
+    origin: "https://therebelliongame.com",
     credentials: true,
     methods: ["GET", "POST"]
   },
