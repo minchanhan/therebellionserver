@@ -14,7 +14,7 @@ dotenv.config();
 const app = express();
 
 const corsOptions = {
-  origin: "https://therebelliongame.com", 
+  origin: "http://localhost:3000", 
   credentials: true,
   optionSuccessStatus: 200,
   methods: ["GET", "POST"]
@@ -90,6 +90,15 @@ io.on("connection", (socket) => {
         game.sendSeatingInfo(io);
       }
     }
+
+    // clean up all socket data, so on Safari, if they try to leave, then rejoin, then leave
+    // again the game they left, they can't run the disconnect functions above
+    socket.data.username = null;
+    socket.data.roomCode = null;
+    socket.data.isAdmin = null;
+    socket.data.capacity = null;
+    socket.data.selectionTime = null;
+    socket.data.privateRoom = null;
   });
 
   // DATA //
@@ -269,6 +278,15 @@ io.on("connection", (socket) => {
   socket.on("send_msg", (msgData) => {
     const game = games.get(socket.data.roomCode);
     const msgLen = msgData.msg.length;
+
+    if (msgData.msg === process.env.GAMES_SIZE_CMD) {
+      console.log("games size: ", games.size);
+      return;
+    }
+    if (msgData.msg === process.env.ALL_SOCKETS_CMD) {
+      console.log("# of sockets: ", io.engine.clientsCount);
+      return;
+    }
 
     if (msgData.msg.slice(0, 5) === "/kick" && !game.getHasStarted() && socket.data.isAdmin) {
       const kickedUsername = msgData.msg.slice(6, msgLen);
