@@ -56,11 +56,11 @@ var games = new Map();
 // SOCKET SETUP //
 io.on("connection", (socket) => {
   // CONNECTION
-  console.log(`User Connected: ${socket.id}`);
+  // console.log(`User Connected: ${socket.id}`);
 
   // DISCONNECT
   socket.on("disconnect", () => {
-    console.log(`User Disconnected: ${socket.id}`);
+    // console.log(`User Disconnected: ${socket.id}`);
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
 
@@ -81,7 +81,7 @@ io.on("connection", (socket) => {
     } else { // lobby
       if (game.getPlayers().length <= 1) {
         games.delete(roomCode); // no emit needed, there'll be nothing left
-        console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
+        // console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
       } else {
         game.removePlayer(socket.id);
         if (socket.data.isAdmin) {
@@ -99,6 +99,23 @@ io.on("connection", (socket) => {
     socket.data.capacity = null;
     socket.data.selectionTime = null;
     socket.data.privateRoom = null;
+  });
+
+  socket.on("am_i_in_game", (room) => {
+    var inGame = false;
+
+    const game = games.get(room);
+    if (game != null) {
+      const players = game.getPlayers();
+      const playersLength = players.length || 0;
+      for (let i = 0; i < playersLength; i++) {
+        if (players[i].getUsername() === socket.data.username) {
+          inGame = true;
+        }
+      }
+    }
+
+    io.to(socket.id).emit("are_you_in_game", { inGame: inGame, formerRoom: room });
   });
 
   // DATA //
