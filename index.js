@@ -81,6 +81,7 @@ io.on("connection", (socket) => {
     } else { // lobby
       if (game.getPlayers().length <= 1) {
         games.delete(roomCode); // no emit needed, there'll be nothing left
+        console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
       } else {
         game.removePlayer(socket.id);
         if (socket.data.isAdmin) {
