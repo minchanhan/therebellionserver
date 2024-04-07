@@ -12,15 +12,9 @@ const VoteStatus = require("./Enums/VoteStatus.js");
 dotenv.config();
 
 const app = express();
-const originsList = [
-  "https://therebelliongame.com", 
-  "https://www.therebelliongame.com",
-  "https://therebelliongame.onrender.com",
-  "https://www.therebelliongame.onrender.com"
-];
 
 const corsOptions = {
-  origin: originsList, 
+  origin: "https://therebelliongame.com", 
   credentials: true,
   optionSuccessStatus: 200
 };
@@ -65,11 +59,11 @@ var games = new Map();
 // SOCKET SETUP //
 io.on("connection", (socket) => {
   // CONNECTION
-  // console.log(`User Connected: ${socket.id}`); //
+  console.log(`User Connected: ${socket.id}`);
 
   // DISCONNECT
   socket.on("disconnect", () => {
-    // console.log(`User Disconnected: ${socket.id}`);
+    console.log(`User Disconnected: ${socket.id}`);
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
 
