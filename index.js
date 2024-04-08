@@ -11,6 +11,7 @@ const VoteStatus = require("./Enums/VoteStatus.js");
 
 dotenv.config();
 
+/* --- SERVER SETUP --- */
 const app = express();
 
 const corsOptions = {
@@ -36,30 +37,29 @@ const io = new Server(server, { // for work with socket.io
   }
 });
 
-// Generic Helpers
-const generateRoomCode = () => {
+var games = new Map();
+
+/* --- GENERIC HELPERS --- */
+const generateRoomCode = () => { // random room code
   return Array.from(Array(5), () => Math.floor(Math.random() * 36).toString(36)).join('');
 };
 
-const checkNameDupes = (username, curNumPlayers, game) => {
+const checkNameInGame = (username, curNumPlayers, game) => { // check if name exists in game
   for (let i = 0; i < curNumPlayers; i++) {
     if (game.getPlayerUsername(i) === username) {
       return true;
     }
   }
   return false;
-}
+};
 
-/* CRUCIAL */
-var games = new Map();
-
-// SOCKET SETUP //
+/* --- IO CONNECTION --- */
 io.on("connection", (socket) => {
   /* --- HELPER FUNCTIONS --- */
-  const sendUpdateGameSettings = (roomCode) => {
+  const sendGameSettingsChanges = (roomCode) => {  // send game settings to client
     const game = games.get(roomCode);
 
-    io.to(roomCode).emit("game_settings_changed", { 
+    io.to(roomCode).emit("game_settings_changed", {
       capacity: game != null ? game.getCapacity() : socket.data.capacity, // uses socket.data
       selectionTime: game != null ? game.getSelectionTime() : socket.data.selectionTime, // for when creating room
       privateRoom: game != null ? game.getPrivateRoom() : socket.data.privateRoom 
@@ -85,12 +85,13 @@ io.on("connection", (socket) => {
   const makeAndJoinPlayer = (username, id, roomCode, game, io) => {
     var player = newPlayer(username, false);
     socket.data.isAdmin = false;
+    
     game.addPlayer(player);
     // console.log(`User ${username} with id: ${id} joined room ${roomCode}`); //
     io.to(id).emit("final_username_set", username);
   
     game.setSeat(player, Team.Unknown, false, false);
-    sendUpdateGameSettings(roomCode);
+    sendGameSettingsChanges(roomCode);
     io.to(roomCode).emit("player_joined_lobby", { 
       seats: game.getSeats(), 
       room: roomCode, 
@@ -109,7 +110,7 @@ io.on("connection", (socket) => {
     // check for duplicate usernames
     var numDuplicates = 0;
     var isDuplicate = false;
-    while (checkNameDupes(socket.data.username, game.getPlayers().length, game)) {
+    while (checkNameInGame(socket.data.username, game.getPlayers().length, game)) {
       numDuplicates += 1;
       if (isDuplicate) { // duplicate of a duplicate lol
         socket.data.username = socket.data.username.slice(0, -1);
@@ -220,18 +221,18 @@ io.on("connection", (socket) => {
     socket.data.capacity = capacity;
     games.get(socket.data.roomCode)?.setCapacity(capacity);
     games.get(socket.data.roomCode)?.setNumSpies(capacity);
-    sendUpdateGameSettings(socket.data.roomCode);
+    sendGameSettingsChanges(socket.data.roomCode);
   });
   socket.on("set_selection_time", (selectionTime) => { // game settings
     socket.data.selectionTime = selectionTime;
     games.get(socket.data.roomCode)?.setSelectionTime(selectionTime);
     games.get(socket.data.roomCode)?.setTimerSeconds(selectionTime * 60);
-    sendUpdateGameSettings(socket.data.roomCode);
+    sendGameSettingsChanges(socket.data.roomCode);
   });
   socket.on("set_private", (privateRoom) => { // game settings
     socket.data.privateRoom = privateRoom;
     games.get(socket.data.roomCode)?.setPrivateRoom(privateRoom);
-    sendUpdateGameSettings(socket.data.roomCode);
+    sendGameSettingsChanges(socket.data.roomCode);
   });
 
   // CREATE ROOM
@@ -308,7 +309,7 @@ io.on("connection", (socket) => {
     if (msgData.msg.slice(0, 5) === "/kick" && !game.getHasStarted() && socket.data.isAdmin) {
       const kickedUsername = msgData.msg.slice(6, msgLen);
       if (kickedUsername === socket.data.username) return;
-      if (!checkNameDupes(kickedUsername, game.getPlayers().length, game)) {
+      if (!checkNameInGame(kickedUsername, game.getPlayers().length, game)) {
         errorNotInLobby(kickedUsername);
         return;
       }
@@ -332,7 +333,7 @@ io.on("connection", (socket) => {
       const newAdminUsername = msgData.msg.slice(7, msgLen);
       if (newAdminUsername === socket.data.username) return;
 
-      if (!checkNameDupes(newAdminUsername, game.getPlayers().length, game)) {
+      if (!checkNameInGame(newAdminUsername, game.getPlayers().length, game)) {
         errorNotInLobby(newAdminUsername);
         return;
       }
