@@ -14,7 +14,7 @@ dotenv.config();
 const app = express();
 
 const corsOptions = {
-  origin: "https://therebelliongame.com", 
+  origin: "http://localhost:3000", 
   credentials: true,
   optionSuccessStatus: 200,
   methods: ["GET", "POST"]
@@ -55,78 +55,7 @@ var games = new Map();
 
 // SOCKET SETUP //
 io.on("connection", (socket) => {
-  // CONNECTION
-  console.log(`User Connected: ${socket.id}`);
-
-  // DISCONNECT
-  socket.on("disconnect", (reason) => {
-    console.log(`User ${socket.id} disconnected because: ${reason}`);
-    if (games.size === 0) return;
-    if (socket.data.roomCode == null) return;
-
-    const roomCode = socket.data.roomCode;
-    var game = games.get(roomCode);
-
-    if (game == null) return;
-
-    const byeMsg = {
-      msg: `${game.getPlayerById(socket.id, game.getPlayers().length)?.getUsername()} has disconnected`,
-      sender: "PLAYER UPDATE",
-      time: ""
-    };
-    io.to(roomCode).emit("receive_msg", byeMsg);
-
-    if (game.getHasStarted()) { // In game, non lobby
-      game.endGame(game, io, false, true, socket.id, socket.data.isAdmin, socket);
-    } else { // lobby
-      if (game.getPlayers().length <= 1) {
-        games.delete(roomCode); // no emit needed, there'll be nothing left
-        console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
-      } else {
-        game.removePlayer(socket.id);
-        if (socket.data.isAdmin) {
-          game.changeRoomAdmin(game, game.getPlayers()[0].getUsername(), false, io, socket);
-        }
-        game.sendSeatingInfo(io);
-      }
-    }
-
-    // clean up all socket data, so on Safari, if they try to leave, then rejoin, then leave
-    // again the game they left, they can't run the disconnect functions above
-    socket.data.username = null;
-    socket.data.roomCode = null;
-    socket.data.isAdmin = null;
-    socket.data.capacity = null;
-    socket.data.selectionTime = null;
-    socket.data.privateRoom = null;
-  });
-
-  socket.on("am_i_in_game", (room) => {
-    var inGame = false;
-
-    const game = games.get(room);
-    if (game != null) {
-      const players = game.getPlayers();
-      const playersLength = players.length || 0;
-      for (let i = 0; i < playersLength; i++) {
-        if (players[i].getUsername() === socket.data.username) {
-          inGame = true;
-        }
-      }
-    }
-
-    io.to(socket.id).emit("are_you_in_game", { inGame: inGame, formerRoom: room });
-  });
-
-  // DATA //
-  socket.on("set_username", (username) => {
-    socket.data.username = username;
-  });
-
-  socket.on("set_room_admin", (isAdmin) => {
-    socket.data.isAdmin = isAdmin;
-  });
-
+  /* --- HELPER FUNCTIONS --- */
   const sendUpdateGameSettings = (roomCode) => {
     const game = games.get(roomCode);
 
@@ -136,26 +65,6 @@ io.on("connection", (socket) => {
       privateRoom: game != null ? game.getPrivateRoom() : socket.data.privateRoom 
     });
   };
-
-  socket.on("set_capacity", (capacity) => { // game settings
-    socket.data.capacity = capacity;
-    games.get(socket.data.roomCode)?.setCapacity(capacity);
-    games.get(socket.data.roomCode)?.setNumSpies(capacity);
-    sendUpdateGameSettings(socket.data.roomCode);
-  });
-
-  socket.on("set_selection_time", (selectionTime) => { // game settings
-    socket.data.selectionTime = selectionTime;
-    games.get(socket.data.roomCode)?.setSelectionTime(selectionTime);
-    games.get(socket.data.roomCode)?.setTimerSeconds(selectionTime * 60);
-    sendUpdateGameSettings(socket.data.roomCode);
-  });
-
-  socket.on("set_private", (privateRoom) => { // game settings
-    socket.data.privateRoom = privateRoom;
-    games.get(socket.data.roomCode)?.setPrivateRoom(privateRoom);
-    sendUpdateGameSettings(socket.data.roomCode);
-  });
 
   const newPlayer = (username, isAdmin) => {
     var player = new Player(
@@ -226,7 +135,106 @@ io.on("connection", (socket) => {
     makeAndJoinPlayer(uniqueName, id, roomCode, game, io);
   };
 
-  // ROOMS //
+  const errorNotInLobby = (username) => {
+    const error = {
+      msg: `${username} not in lobby, try removing extra spaces in this command?`,
+      sender: "ADMIN INFO",
+      time: ""
+    };
+    io.to(socket.id).emit("receive_msg", error);
+  };
+
+  /* --- Listeners --- */
+  // CONNECTION
+  console.log(`User Connected: ${socket.id}`);
+
+  // DISCONNECT
+  socket.on("disconnect", (reason) => {
+    console.log(`User ${socket.id} disconnected because: ${reason}`);
+    if (games.size === 0) return;
+    if (socket.data.roomCode == null) return;
+
+    const roomCode = socket.data.roomCode;
+    var game = games.get(roomCode);
+
+    if (game == null) return;
+
+    const byeMsg = {
+      msg: `${game.getPlayerById(socket.id, game.getPlayers().length)?.getUsername()} has disconnected`,
+      sender: "PLAYER UPDATE",
+      time: ""
+    };
+    io.to(roomCode).emit("receive_msg", byeMsg);
+
+    if (game.getHasStarted()) { // In game, non lobby
+      game.endGame(game, io, false, true, socket.id, socket.data.isAdmin, socket);
+    } else { // lobby
+      if (game.getPlayers().length <= 1) {
+        games.delete(roomCode); // no emit needed, there'll be nothing left
+        console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
+      } else {
+        game.removePlayer(socket.id);
+        if (socket.data.isAdmin) {
+          game.changeRoomAdmin(game, game.getPlayers()[0].getUsername(), false, io, socket);
+        }
+        game.sendSeatingInfo(io);
+      }
+    }
+
+    // clean up all socket data, so on Safari, if they try to leave, then rejoin, then leave
+    // again the game they left, they can't run the disconnect functions above
+    socket.data.username = null;
+    socket.data.roomCode = null;
+    socket.data.isAdmin = null;
+    socket.data.capacity = null;
+    socket.data.selectionTime = null;
+    socket.data.privateRoom = null;
+  });
+
+  // CHECK IF CLIENT IN GAME
+  socket.on("am_i_in_game", (room) => {
+    var inGame = false;
+
+    const game = games.get(room);
+    if (game != null) {
+      const players = game.getPlayers();
+      const playersLength = players.length || 0;
+      for (let i = 0; i < playersLength; i++) {
+        if (players[i].getUsername() === socket.data.username) {
+          inGame = true;
+        }
+      }
+    }
+
+    io.to(socket.id).emit("are_you_in_game", { inGame: inGame, formerRoom: room });
+  });
+
+  // SET DATA RECEIVED BY CLIENT
+  socket.on("set_username", (username) => {
+    socket.data.username = username;
+  });
+  socket.on("set_room_admin", (isAdmin) => {
+    socket.data.isAdmin = isAdmin;
+  });
+  socket.on("set_capacity", (capacity) => { // game settings
+    socket.data.capacity = capacity;
+    games.get(socket.data.roomCode)?.setCapacity(capacity);
+    games.get(socket.data.roomCode)?.setNumSpies(capacity);
+    sendUpdateGameSettings(socket.data.roomCode);
+  });
+  socket.on("set_selection_time", (selectionTime) => { // game settings
+    socket.data.selectionTime = selectionTime;
+    games.get(socket.data.roomCode)?.setSelectionTime(selectionTime);
+    games.get(socket.data.roomCode)?.setTimerSeconds(selectionTime * 60);
+    sendUpdateGameSettings(socket.data.roomCode);
+  });
+  socket.on("set_private", (privateRoom) => { // game settings
+    socket.data.privateRoom = privateRoom;
+    games.get(socket.data.roomCode)?.setPrivateRoom(privateRoom);
+    sendUpdateGameSettings(socket.data.roomCode);
+  });
+
+  // CREATE ROOM
   socket.on("create_room", () => {
     // create room code
     const username = socket.data.username;
@@ -250,6 +258,7 @@ io.on("connection", (socket) => {
     game.sendAdminCommands(socket.id, io);
   });
 
+  // JOIN ROOM
   socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
     // random join case
     if (roomCode === "random_join") {
@@ -283,15 +292,6 @@ io.on("connection", (socket) => {
   });
 
   // MESSAGES
-  const errorNotInLobby = (username) => {
-    const error = {
-      msg: `${username} not in lobby, try removing extra spaces in this command?`,
-      sender: "ADMIN INFO",
-      time: ""
-    };
-    io.to(socket.id).emit("receive_msg", error);
-  };
-
   socket.on("send_msg", (msgData) => {
     const game = games.get(socket.data.roomCode);
     const msgLen = msgData.msg.length;
@@ -399,7 +399,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("mission_result_is_in", (info) => {
+  socket.on("mission_result_is_in", (info) => { // 3
     const game = games.get(info.roomCode);
     game.setMissionResult(info.pass);
     const passes = game.getMissionResult()[0];
@@ -438,6 +438,7 @@ io.on("connection", (socket) => {
   });
 });
 
+// server running...
 server.listen(process.env.PORT, () => {
   console.log(`Server is running on port ${process.env.PORT}..`);
 });

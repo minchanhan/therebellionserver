@@ -271,8 +271,17 @@ class Game {
   setLeaderSelectedTeam(leaderSelectedTeam) {
     this.leaderSelectedTeam = leaderSelectedTeam;
   }
+
+  getRoomAdmin() {
+    const players = this.getPlayers();
+    for (let i = 0; i < players.length; i++) {
+      if (players[i].getIsAdmin()) {
+        return players[i].getUsername();
+      }
+    }
+  };
   
-  /* Helpers */
+  /* --- Helpers --- */
   shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -288,14 +297,21 @@ class Game {
     return arr;
   };
 
-  getRoomAdmin() {
-    const players = this.getPlayers();
-    for (let i = 0; i < players.length; i++) {
-      if (players[i].getIsAdmin()) {
-        return players[i].getUsername();
-      }
-    }
+  sendAdminCommands (id, io) {
+    const msgData = {
+      msg: `Admins can kick players using \`/kick <username>\`
+      
+      Admins can transfer admin duties using \`/admin <username>\``,
+      sender: "ADMIN INFO",
+      time: ""
+    };
+
+    io.to(id).emit("receive_msg", msgData); // send to CHATBOX
   }
+
+  gameMasterSpeech(game, io, speech) {
+    io.to(game.getRoomCode()).emit("game_master_speech", speech);
+  };
 
   startTimer(io) {
     let interval = setInterval(() => {
@@ -363,11 +379,7 @@ class Game {
     }
   };
 
-  gameMasterSpeech(game, io, speech) {
-    io.to(game.getRoomCode()).emit("game_master_speech", speech);
-  };
-
-  letLeaderSelect(game, io, leaderId) {
+  letLeaderSelect(game, io, leaderId) { // 1
     game.setLeaderSelectedTeam(false);
     game.setTimerSeconds(game.getSelectionTime() * 60);
     for (let i = 0; i < game.getCapacity(); i++) {
@@ -378,7 +390,7 @@ class Game {
     game.startTimer(io);
   };
 
-  handleVote(game, io, selectedMembers, room, random=false) {
+  handleVote(game, io, selectedMembers, room, random=false) { // 2
     const cap = game.getCapacity();
     var seats = game.getSeats();
 
@@ -401,7 +413,7 @@ class Game {
     game.gameMasterSpeech(game, io, speech);
   };
 
-  handleMission(game, io, selectedPlayers) {
+  handleMission(game, io, selectedPlayers) { // 3
     const cap = game.getCapacity();
     var seats = game.getSeats();
 
@@ -416,7 +428,7 @@ class Game {
     ${selectedPlayers.slice(0, -1).join(', ')} and ${selectedPlayers.slice(-1)} please
     make a decision, PASS or FAIL. (Rebellion members must pass, spies can choose either). `;
     game.gameMasterSpeech(game, io, startMissionSpeech);
-  }
+  };
 
   // change leader
   changeLeader(game, io, resultSpeech) {
@@ -438,6 +450,29 @@ class Game {
     game.letLeaderSelect(game, io, leader.getId());
   };
 
+  changeRoomAdmin(game, newAdminUsername, manualTransfer=true, io, socket) {
+    if (manualTransfer) game.getPlayerByUsername(socket.data.username, game.getSeats().length).setIsAdmin(false);
+    const newAdmin = game.getPlayerByUsername(newAdminUsername, game.getSeats().length);
+    newAdmin.setIsAdmin(true);
+
+    for (let i = 0; i < game.getPlayers().length; i++) {
+      const plrId = game.getPlayers()[i].getId();
+      io.to(plrId).emit("room_admin_changed", {
+        isAdmin: plrId === newAdmin.getId(), 
+        adminName: newAdminUsername
+      });
+    }
+
+    game.sendAdminCommands(newAdmin.getId(), io);
+    const adminTransferMsg = {
+      msg: `${newAdminUsername} has been made admin`,
+      sender: "PLAYER UPDATE",
+      time: ""
+    };
+    io.to(socket.data.roomCode).emit("receive_msg", adminTransferMsg);
+  };
+
+  // Game states
   resetGameStates(game) {
     game.resetMission();
     game.clearCurVoteTally();
@@ -448,7 +483,7 @@ class Game {
     game.clearMissionFails();
     // curMissionVoteDisapproves is set to 0 at start of vote
     game.clearMissionResultTrack();
-  }
+  };
 
   startGame(game, io) {
     if (game.getGameRound() > 1) game.resetGameStates(game, io);
@@ -493,40 +528,6 @@ class Game {
     // give leader powers, assign it the start
     game.letLeaderSelect(game, io, leader.getId());
   };
-
-  sendAdminCommands (id, io) {
-    const msgData = {
-      msg: `Admins can kick players using \`/kick <username>\`
-      
-      Admins can transfer admin duties using \`/admin <username>\``,
-      sender: "ADMIN INFO",
-      time: ""
-    };
-
-    io.to(id).emit("receive_msg", msgData); // send to CHATBOX
-  }
-
-  changeRoomAdmin(game, newAdminUsername, manualTransfer=true, io, socket) {
-    if (manualTransfer) game.getPlayerByUsername(socket.data.username, game.getSeats().length).setIsAdmin(false);
-    const newAdmin = game.getPlayerByUsername(newAdminUsername, game.getSeats().length);
-    newAdmin.setIsAdmin(true);
-
-    for (let i = 0; i < game.getPlayers().length; i++) {
-      const plrId = game.getPlayers()[i].getId();
-      io.to(plrId).emit("room_admin_changed", {
-        isAdmin: plrId === newAdmin.getId(), 
-        adminName: newAdminUsername
-      });
-    }
-
-    game.sendAdminCommands(newAdmin.getId(), io);
-    const adminTransferMsg = {
-      msg: `${newAdminUsername} has been made admin`,
-      sender: "PLAYER UPDATE",
-      time: ""
-    };
-    io.to(socket.data.roomCode).emit("receive_msg", adminTransferMsg);
-  }
 
   endGame(
     game, 
