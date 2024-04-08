@@ -56,11 +56,11 @@ var games = new Map();
 // SOCKET SETUP //
 io.on("connection", (socket) => {
   // CONNECTION
-  // console.log(`User Connected: ${socket.id}`);
+  console.log(`User Connected: ${socket.id}`);
 
   // DISCONNECT
-  socket.on("disconnect", () => {
-    // console.log(`User Disconnected: ${socket.id}`);
+  socket.on("disconnect", (reason) => {
+    console.log(`User ${socket.id} disconnected because: ${reason}`);
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
 
@@ -81,7 +81,7 @@ io.on("connection", (socket) => {
     } else { // lobby
       if (game.getPlayers().length <= 1) {
         games.delete(roomCode); // no emit needed, there'll be nothing left
-        // console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
+        console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
       } else {
         game.removePlayer(socket.id);
         if (socket.data.isAdmin) {
