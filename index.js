@@ -15,7 +15,7 @@ dotenv.config();
 const app = express();
 
 const corsOptions = {
-  origin: "http://localhost:3000", 
+  origin: "https://therebelliongame.com", 
   credentials: true,
   optionSuccessStatus: 200,
   methods: ["GET", "POST"]
@@ -85,7 +85,7 @@ io.on("connection", (socket) => {
   const makeAndJoinPlayer = (username, id, roomCode, game, io) => {
     var player = newPlayer(username, false);
     socket.data.isAdmin = false;
-    
+
     game.addPlayer(player);
     // console.log(`User ${username} with id: ${id} joined room ${roomCode}`); //
     io.to(id).emit("final_username_set", username);
@@ -148,10 +148,12 @@ io.on("connection", (socket) => {
   /* --- Listeners --- */
   // CONNECTION
   console.log(`User Connected: ${socket.id}`);
+  console.log("their data on connect: ", socket.data);
 
   // DISCONNECT
   socket.on("disconnect", (reason) => {
     console.log(`User ${socket.id} disconnected because: ${reason}`);
+    console.log("their data on disconnect: ", socket.data);
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
 
