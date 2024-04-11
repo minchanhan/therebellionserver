@@ -14,8 +14,9 @@ dotenv.config();
 /* --- SERVER SETUP --- */
 const app = express();
 
+const origin = process.env.NODE_ENV === "dev" ? "http://localhost:3000" : "https://therebelliongame.com";
 const corsOptions = {
-  origin: "https://therebelliongame.com", 
+  origin: origin, 
   credentials: true,
   optionSuccessStatus: 200,
   methods: ["GET", "POST"]
