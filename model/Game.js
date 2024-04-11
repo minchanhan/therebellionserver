@@ -2,42 +2,55 @@ const Team = require("../Enums/Team.js");
 const MissionResult = require("../Enums/MissionResult.js");
 
 class Game {
-  constructor(roomCode, players, capacity, privateRoom, selectionTime, hasStarted) {
+  constructor(
+    roomCode, 
+    roomAdmin, 
+    capacity, 
+    privateRoom, 
+    selectionTime,
+    hasStarted, 
+    teamSelectHappening,
+    voteHappening,
+    missionHappening,
+    players,
+    gameMasterSpeech,
+    msgList,
+    curMission,
+    curSelectedPlayers,
+    curVoteTally,
+    curMissionVoteDisapproves,
+    curMissionFails,
+    missionResultTrack,
+    missionHistory,
+  ) {
+    // game settings
     this.roomCode = roomCode; // string
-    this.players = players; // arr[Player]
-
-    // room settings
+    this.roomAdmin = roomAdmin; // Player
     this.capacity = capacity // int
     this.privateRoom = privateRoom; // bool
-    this.selectionTime = selectionTime // int
+    this.selectionTime = selectionTime // int (in seconds)
+
+    // game states
     this.hasStarted = hasStarted // bool
+    this.teamSelectHappening = teamSelectHappening; // bool
+    this.voteHappening = voteHappening; // bool
+    this.missionHappening = missionHappening; // bool
 
-    // game logic
-    this.leaderIndex = 0; // int, to help Game helpers
-    this.mission = 1; // int, the mission/round game is on ***
-    this.curVoteTally = [[], []]; // [arr[username], arr[username]] *** [approvers[], disapprovers[]]
-    this.missionResult = [0, 0]; // [int: passes, int: fails] ***
-    this.seats = []; // arr[[player.username, team, isLeader, onMission]]
-    this.numSpies = this.capacity < 7 ? 2 
-                    : this.capacity < 10 ? 3 
-                    : 4; // int, relies on capacity
-    this.missionPasses = 0; // int ***
-    this.missionFails = 0; // int ***
-    this.missionTeamSizes = []; // arr[int]
+    // game screen
+    this.players = players; // arr[Player]
 
-    this.curMissionVoteDisapproves = 0; // int, ***
-    this.missionResultTrack = [ // ***
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None
-    ];
-    this.gameRound = 1;
-    this.playerRevealArr = [];
-    this.timerSeconds = selectionTime * 60;
-    this.leaderSelectedTeam = false;
-    // *** means reset before action
+    this.msgList = msgList; // arr[msg]
+    
+    this.curMission = curMission; // int, the mission/round game is on ***
+    this.curSelectedPlayers = curSelectedPlayers; // arr[Player]
+
+    this.curVoteTally = curVoteTally; // [arr[approve Player], arr[disapprove Player]]
+    this.curMissionVoteDisapproves = curMissionVoteDisapproves; // int
+
+    this.curMissionFails = curMissionFails; // int
+    this.missionResultTrack = missionResultTrack; // arr[MissionResult (None, Pass, Fail)]
+    
+    this.missionHistory = missionHistory; // arr[[curSelectedPlayers, curVoteTally]]
   };
 
   /* Properties */

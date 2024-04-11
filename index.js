@@ -8,6 +8,7 @@ const Player = require("./model/Player.js");
 const Game = require("./model/Game.js");
 const Team = require("./Enums/Team.js");
 const VoteStatus = require("./Enums/VoteStatus.js");
+const MissionResult = require("./Enums/MissionResult.js");
 
 dotenv.config();
 
@@ -70,15 +71,10 @@ io.on("connection", (socket) => {
   const newPlayer = (username, isAdmin) => {
     var player = new Player(
       username, // username
-      socket.id, // id
       isAdmin, // isAdmin
-
       Team.Unknown, // team
       false, // isLeader
-      VoteStatus.None, // voteStatus
       false, // onMission
-      [], // plotCards
-      false // isRevealed
     );
     return player;
   };
@@ -152,8 +148,10 @@ io.on("connection", (socket) => {
   console.log("their data on connect: ", socket.data);
 
   // DISCONNECT
-  socket.on("disconnect", (reason) => {
+  socket.on("disconnect", (reason, details) => {
     console.log(`User ${socket.id} disconnected because: ${reason}`);
+    console.log(`disconnect details: ${details}`);
+
     console.log("their data on disconnect: ", socket.data);
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
@@ -248,7 +246,33 @@ io.on("connection", (socket) => {
 
     socket.join(roomCode);
 
-    const game = new Game(roomCode, [player], 6, true, 7, false);
+    const game = new Game(
+      roomCode, 
+      roomAdmin, 
+      6, 
+      true, 
+      7 * 60,
+      false, 
+      false,
+      false,
+      false,
+      // [admin only rn],
+      [],
+      1,
+      [],
+      [[],[]], // curVoteTally,
+      0,
+      0,
+      [
+        MissionResult.None, 
+        MissionResult.None, 
+        MissionResult.None, 
+        MissionResult.None, 
+        MissionResult.None
+      ], // missionResultTrack
+      [], // missionHistory
+    );
+
     games.set(roomCode, game);
     game.setSeat(player, Team.Unknown, false, false);
 
