@@ -8,6 +8,7 @@ class Game {
     capacity, 
     privateRoom, 
     selectionTimeSecs,
+    numGames,
     hasStarted, 
     teamSelectHappening,
     voteHappening,
@@ -25,12 +26,13 @@ class Game {
     // game settings
     this.roomCode = roomCode; // string
     this.roomAdmin = roomAdmin; // Player
-    this.capacity = capacity // int
+    this.capacity = capacity; // int
     this.privateRoom = privateRoom; // bool
-    this.selectionTimeSecs = selectionTimeSecs // int (in seconds)
+    this.selectionTimeSecs = selectionTimeSecs; // int (in seconds)
+    this.numGames = numGames;
 
     // game states
-    this.hasStarted = hasStarted // bool
+    this.hasStarted = hasStarted; // bool
     this.teamSelectHappening = teamSelectHappening; // bool
     this.voteHappening = voteHappening; // bool
     this.missionHappening = missionHappening; // bool
@@ -86,6 +88,13 @@ class Game {
   };
   setSelectionTimeSecs(selectionTimeSecs) {
     this.selectionTimeSecs = selectionTimeSecs;
+  };
+
+  getNumGames() {
+    return this.numGames;
+  };
+  setNumGames(numGames) {
+    this.numGames = numGames;
   };
 
   getHasStarted() {
@@ -273,18 +282,6 @@ class Game {
     return arr;
   };
 
-  sendAdminCommands (id, io) {
-    const msgData = {
-      msg: `Admins can kick players using \`/kick <username>\`
-      
-      Admins can transfer admin duties using \`/admin <username>\``,
-      sender: "ADMIN INFO",
-      time: ""
-    };
-
-    io.to(id).emit("receive_msg", msgData); // send to CHATBOX
-  }
-
   gameMasterSpeech(game, io, speech) {
     io.to(game.getRoomCode()).emit("game_master_speech", speech);
   };
@@ -357,10 +354,10 @@ class Game {
 
   letLeaderSelect(game, io, leaderId) { // 1
     game.setLeaderSelectedTeam(false);
-    game.setTimerSeconds(game.getSelectionTime() * 60);
+    game.setTimerSeconds(game.getSelectionTimeSecs());
     for (let i = 0; i < game.getCapacity(); i++) {
       var playerId = game.getPlayers()[i].getId();
-      io.to(playerId).emit("leader_is_selecting", { isSelecting: playerId === leaderId, mins: game.getSelectionTime()});
+      io.to(playerId).emit("leader_is_selecting", { isSelecting: playerId === leaderId, secs: game.getSelectionTimeSecs()});
     }
 
     game.startTimer(io);

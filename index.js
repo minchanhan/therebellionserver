@@ -43,7 +43,7 @@ var games = new Map();
 
 /* --- GENERIC HELPERS --- */
 const generateRoomCode = () => { // random room code
-  return Array.from(Array(5), () => Math.floor(Math.random() * 36).toString(36)).join('');
+  return Array.from(Array(6), () => Math.floor(Math.random() * 36).toString(36)).join('');
 };
 
 const checkNameInGame = (username, curNumPlayers, game) => { // check if name exists in game
@@ -62,8 +62,8 @@ io.on("connection", (socket) => {
     const game = games.get(roomCode);
 
     io.to(roomCode).emit("game_settings_changed", {
-      capacity: 
-      selectionTime: game.
+      capacity: game?.getCapacity(),
+      selectionTimeSecs: game.getSelectionTimeSecs(),
       privateRoom: game.getCapacity()
     });
   };
@@ -150,7 +150,6 @@ io.on("connection", (socket) => {
     console.log(`User ${socket.id} disconnected because: ${reason}`);
     console.log(`disconnect details: ${details}`);
 
-    console.log("their data on disconnect: ", socket.data);
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
 
@@ -187,26 +186,13 @@ io.on("connection", (socket) => {
     socket.data.roomCode = null;
     socket.data.isAdmin = null;
     socket.data.capacity = null;
-    socket.data.selectionTime = null;
+    socket.data.selectionTimeSecs = null;
     socket.data.privateRoom = null;
   });
 
   // CHECK IF CLIENT IN GAME
-  socket.on("am_i_in_game", (room) => {
-    var inGame = false;
-
-    const game = games.get(room);
-    if (game != null) {
-      const players = game.getPlayers();
-      const playersLength = players.length || 0;
-      for (let i = 0; i < playersLength; i++) {
-        if (players[i].getUsername() === socket.data.username) {
-          inGame = true;
-        }
-      }
-    }
-
-    io.to(socket.id).emit("are_you_in_game", { inGame: inGame, formerRoom: room });
+  socket.on("am_i_in_room", (room, areYouInRoom) => {
+    areYouInRoom({ inRoom: socket.rooms.has(room) });
   });
 
   // SET DATA RECEIVED BY CLIENT
@@ -216,10 +202,10 @@ io.on("connection", (socket) => {
     games.get(socket.data.roomCode)?.setNumSpies(capacity);
     sendGameSettingsChanges(socket.data.roomCode);
   });
-  socket.on("set_selection_time", (selectionTime) => { // game settings
-    socket.data.selectionTime = selectionTime;
-    games.get(socket.data.roomCode)?.setSelectionTime(selectionTime);
-    games.get(socket.data.roomCode)?.setTimerSeconds(selectionTime * 60);
+  socket.on("set_selection_time", (selectionTimeSecs) => { // game settings
+    socket.data.selectionTimeSecs = selectionTimeSecs;
+    games.get(socket.data.roomCode)?.setSelectionTimeSecs(selectionTimeSecs);
+    games.get(socket.data.roomCode)?.setTimerSeconds(selectionTimeSecs * 60);
     sendGameSettingsChanges(socket.data.roomCode);
   });
   socket.on("set_private", (privateRoom) => { // game settings
@@ -229,11 +215,12 @@ io.on("connection", (socket) => {
   });
 
   // CREATE ROOM
-  socket.on("create_room", (username) => {
+  socket.on("create_room", (username, navigateTo) => {
     // create room code
     const admin = newPlayer(username, true);
     const roomCode = generateRoomCode();
     socket.join(roomCode);
+    console.log("created room: ", roomCode)
 
     const game = new Game(
       roomCode, // roomCode
@@ -241,6 +228,7 @@ io.on("connection", (socket) => {
       6, // capacity
       true, // private room
       7 * 60, // selectionTimeSecs
+      1, // numGames
       false, // hasStarted
       false, // teamSelectHappening
       false, // voteHappening
@@ -262,8 +250,7 @@ io.on("connection", (socket) => {
       [], // missionHistory
     );
     games.set(roomCode, game);
-
-    game.sendAdminCommands(socket.id, io);
+    navigateTo({ room: roomCode });
   });
 
   // JOIN ROOM
