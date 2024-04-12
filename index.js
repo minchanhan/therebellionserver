@@ -62,9 +62,9 @@ io.on("connection", (socket) => {
     const game = games.get(roomCode);
 
     io.to(roomCode).emit("game_settings_changed", {
-      capacity: game != null ? game.getCapacity() : socket.data.capacity, // uses socket.data
-      selectionTime: game != null ? game.getSelectionTime() : socket.data.selectionTime, // for when creating room
-      privateRoom: game != null ? game.getPrivateRoom() : socket.data.privateRoom 
+      capacity: 
+      selectionTime: game.
+      privateRoom: game.getCapacity()
     });
   };
 
@@ -81,7 +81,6 @@ io.on("connection", (socket) => {
 
   const makeAndJoinPlayer = (username, id, roomCode, game, io) => {
     var player = newPlayer(username, false);
-    socket.data.isAdmin = false;
 
     game.addPlayer(player);
     // console.log(`User ${username} with id: ${id} joined room ${roomCode}`); //
@@ -107,7 +106,7 @@ io.on("connection", (socket) => {
     // check for duplicate usernames
     var numDuplicates = 0;
     var isDuplicate = false;
-    while (checkNameInGame(socket.data.username, game.getPlayers().length, game)) {
+    while (checkNameInGame(username, game.getPlayers().length, game)) {
       numDuplicates += 1;
       if (isDuplicate) { // duplicate of a duplicate lol
         socket.data.username = socket.data.username.slice(0, -1);
@@ -145,7 +144,6 @@ io.on("connection", (socket) => {
   /* --- Listeners --- */
   // CONNECTION
   console.log(`User Connected: ${socket.id}`);
-  console.log("their data on connect: ", socket.data);
 
   // DISCONNECT
   socket.on("disconnect", (reason, details) => {
@@ -212,12 +210,6 @@ io.on("connection", (socket) => {
   });
 
   // SET DATA RECEIVED BY CLIENT
-  socket.on("set_username", (username) => {
-    socket.data.username = username;
-  });
-  socket.on("set_room_admin", (isAdmin) => {
-    socket.data.isAdmin = isAdmin;
-  });
   socket.on("set_capacity", (capacity) => { // game settings
     socket.data.capacity = capacity;
     games.get(socket.data.roomCode)?.setCapacity(capacity);
@@ -237,32 +229,29 @@ io.on("connection", (socket) => {
   });
 
   // CREATE ROOM
-  socket.on("create_room", () => {
+  socket.on("create_room", (username) => {
     // create room code
-    const username = socket.data.username;
-    var player = newPlayer(username, true);
+    const admin = newPlayer(username, true);
     const roomCode = generateRoomCode();
-    socket.data.roomCode = roomCode;
-
     socket.join(roomCode);
 
     const game = new Game(
-      roomCode, 
-      roomAdmin, 
-      6, 
-      true, 
-      7 * 60,
-      false, 
-      false,
-      false,
-      false,
-      // [admin only rn],
-      [],
-      1,
-      [],
+      roomCode, // roomCode
+      admin, // roomAdmin
+      6, // capacity
+      true, // private room
+      7 * 60, // selectionTimeSecs
+      false, // hasStarted
+      false, // teamSelectHappening
+      false, // voteHappening
+      false, // missionHappening
+      [admin], // players
+      [], // msgList
+      1, // curMission
+      [], // curSelectedPlayers
       [[],[]], // curVoteTally,
-      0,
-      0,
+      0, // curMissionVoteDisapproves
+      0, // curMissionFails
       [
         MissionResult.None, 
         MissionResult.None, 
@@ -272,16 +261,7 @@ io.on("connection", (socket) => {
       ], // missionResultTrack
       [], // missionHistory
     );
-
     games.set(roomCode, game);
-    game.setSeat(player, Team.Unknown, false, false);
-
-    // console.log(`User ${username} with id: ${socket.id} created room ${roomCode}`); //
-    io.to(roomCode).emit("player_joined_lobby", { 
-      seats: game.getSeats(), 
-      room: roomCode, 
-      roomAdmin: game.getRoomAdmin() 
-    });
 
     game.sendAdminCommands(socket.id, io);
   });

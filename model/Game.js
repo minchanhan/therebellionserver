@@ -7,13 +7,12 @@ class Game {
     roomAdmin, 
     capacity, 
     privateRoom, 
-    selectionTime,
+    selectionTimeSecs,
     hasStarted, 
     teamSelectHappening,
     voteHappening,
     missionHappening,
     players,
-    gameMasterSpeech,
     msgList,
     curMission,
     curSelectedPlayers,
@@ -28,7 +27,7 @@ class Game {
     this.roomAdmin = roomAdmin; // Player
     this.capacity = capacity // int
     this.privateRoom = privateRoom; // bool
-    this.selectionTime = selectionTime // int (in seconds)
+    this.selectionTimeSecs = selectionTimeSecs // int (in seconds)
 
     // game states
     this.hasStarted = hasStarted // bool
@@ -56,59 +55,17 @@ class Game {
   /* Properties */
   getRoomCode() {
     return this.roomCode;
-  }
-
-  addPlayer(player) {
-    this.players.push(player);
   };
-  removePlayer(removedId) { // to be used if player leaves waiting lobby
-    for (let i = 0; i < this.players.length; i++) {
-      if (this.getPlayerId(i) === removedId) {
-        this.players.splice(i, 1);
-        this.seats.splice(i, 1);
-      }
-    }
-  }
-  getPlayers() {
-    return this.players;
+  setRoomCode(roomCode) {
+    this.roomCode = roomCode;
   };
-  getPlayerId(index) {
-    return this.players[index].getId();
-  }
-  getPlayerUsername(index) {
-    return this.players[index].getUsername();
-  }
-  getPlayerByUsername(username, numPlayers) {
-    for (let i = 0; i < numPlayers; i++) {
-      if (this.getPlayerUsername(i) === username) {
-        return this.getPlayers()[i];
-      }
-    }
-  }
-  getPlayerById(id, numPlayers) {
-    for (let i = 0; i < numPlayers; i++) {
-      if (this.getPlayerId(i) === id) {
-        return this.getPlayers()[i];
-      }
-    }
-  }
-  getPlayerTeam(index) {
-    return this.players[index].getTeam();
-  }
-  setPlayerTeam(team, index) {
-    this.players[index].setTeam(team);
-  }
 
-  setLeader(leader, leaderIndex, isLeader) { // seat change
-    leader.setIsLeader(isLeader);
-    for (let i = 0; i < this.capacity; i++) {
-      if (i === leaderIndex) {
-        this.seats[i][2] = true;
-      } else {
-        this.seats[i][2] = false;
-      }
-    }
-  }
+  getRoomAdmin() {
+    return this.roomAdmin;
+  };
+  setRoomAdmin(roomAdmin) {
+    this.roomAdmin = roomAdmin;
+  };
 
   getCapacity() {
     return this.capacity;
@@ -124,12 +81,12 @@ class Game {
     this.privateRoom = privateRoom;
   };
 
-  getSelectionTime() {
-    return this.selectionTime;
+  getSelectionTimeSecs() {
+    return this.selectionTimeSecs;
   };
-  setSelectionTime(selectionTime) {
-    this.selectionTime = selectionTime;
-  }
+  setSelectionTimeSecs(selectionTimeSecs) {
+    this.selectionTimeSecs = selectionTimeSecs;
+  };
 
   getHasStarted() {
     return this.hasStarted;
@@ -138,115 +95,97 @@ class Game {
     this.hasStarted = hasStarted;
   };
 
-  getLeaderIndex() {
-    return this.leaderIndex;
-  }
-  setLeaderIndex(newLeaderIndex) {
-    this.leaderIndex = newLeaderIndex;
-  }
-  changeLeaderIndex() {
-    if ((this.leaderIndex + 1) === this.capacity) {
-      this.leaderIndex = 0;
-    } else {
-      this.leaderIndex += 1;
-    }
-  }
+  getTeamSelectHappening() {
+    return this.teamSelectHappening;
+  };
+  setTeamSelectHappening(teamSelectHappening) {
+    this.teamSelectHappening = teamSelectHappening;
+  };
 
-  getMission() {
-    return this.mission;
-  }
-  addMission() {
-    this.mission += 1;
-  }
-  resetMission() {
-    this.mission = 1;
-  }
+  getVoteHappening() {
+    return this.voteHappening;
+  };
+  setVoteHappening(voteHappening) {
+    this.voteHappening = voteHappening;
+  };
+
+  getMissionHappening() {
+    return this.missionHappening;
+  };
+  setMissionHappening(missionHappening) {
+    this.missionHappening = missionHappening;
+  };
+
+  getPlayers() {
+    return this.players;
+  };
+  setPlayers(players) {
+    this.players = players;
+  };
+  addPlayer(player) {
+    this.players.push(player);
+  };
+
+  getMsgList() {
+    return this.msgList;
+  };
+  setMsgList(msgList) {
+    this.msgList = msgList;
+  };
+  addMsgList(msg) {
+    this.msgList.push(msg);
+  };
+
+  getCurMission() {
+    return this.curMission;
+  };
+  addCurMission() {
+    this.curMission += 1;
+  };
+  resetCurMission() {
+    this.curMission = 1;
+  };
+
+  getCurSelectedPlayers() {
+    return this.curSelectedPlayers;
+  };
+  setCurSelectedPlayers(curSelectedPlayers) {
+    this.curSelectedPlayers = curSelectedPlayers;
+  };
 
   getCurVoteTally() {
     return this.curVoteTally;
-  }
+  };
   setCurVoteTally(approve, voter) {
     approve ? this.curVoteTally[0].push(voter) : this.curVoteTally[1].push(voter);
-  }
+  };
   clearCurVoteTally() {
     this.curVoteTally = [[], []];
-  }
-
-  getMissionResult() {
-    return this.missionResult;
-  }
-  setMissionResult(pass) {
-    pass ? this.missionResult[0] += 1 : this.missionResult[1] += 1;
-  }
-  clearMissionResult() {
-    this.missionResult = [0, 0];
-  }
-
-  clearOnMission() { // seat change
-    for (let i = 0; i < this.capacity; i++) {
-      this.seats[i][3] = false;
-    }
-  }
-
-  getSeats() {
-    return this.seats;
-  }
-  setSeat(player, team, isLeader, onMission) { // username and team only (ADDS SEAT, DOESN'T ALTER IT)
-    this.seats.push([player.getUsername(), team, isLeader, onMission]); // keeps order of players with team
-  }
-  clearSeats() {
-    this.seats = [];
-  }
-
-  getNumSpies() {
-    return this.numSpies;
-  }
-  setNumSpies(capacity) {
-    this.numSpies = capacity < 7 ? 2 
-                    : capacity < 10 ? 3 
-                    : 4;
-  }
-
-  getMissionPasses() {
-    return this.missionPasses;
-  }
-  addMissionPasses() {
-    this.missionPasses += 1;
-  }
-  clearMissionPasses() {
-    this.missionPasses = 0;
-  }
-
-  getMissionFails() {
-    return this.missionFails;
-  }
-  addMissionFails() {
-    this.missionFails += 1;
-  }
-  clearMissionFails() {
-    this.missionFails = 0;
-  }
-
-  getMissionTeamSizes() {
-    return this.missionTeamSizes;
-  }
-  setMissionTeamSizes(missionTeamSizes) {
-    this.missionTeamSizes = missionTeamSizes;
-  }
+  };
 
   getCurMissionVoteDisapproves() {
     return this.curMissionVoteDisapproves;
-  }
+  };
   setCurMissionVoteDisapproves(newVal) {
     this.curMissionVoteDisapproves = newVal;
-  }
+  };
+
+  getCurMissionFails() {
+    return this.curMissionFails;
+  };
+  addCurMissionFails() {
+    this.curMissionFails += 1;
+  };
+  clearCurMissionFails() {
+    this.curMissionFails = 0;
+  };
 
   getMissionResultTrack() {
     return this.missionResultTrack;
-  }
+  };
   setMissionResultTrack(mission, missionPassed) {
     this.missionResultTrack[mission - 1] = missionPassed ? MissionResult.Pass : MissionResult.Fail;
-  }
+  };
   clearMissionResultTrack() {
     this.missionResultTrack = [
       MissionResult.None, 
@@ -255,44 +194,68 @@ class Game {
       MissionResult.None, 
       MissionResult.None
     ];
-  }
+  };
 
-  getGameRound() {
-    return this.gameRound;
-  }
-  addGameRound() {
-    this.gameRound += 1;
-  }
+  getMissionHistory() {
+    return this.missionHistory;
+  };
+  setMissionHistory(missionHistory) {
+    this.missionHistory = missionHistory;
+  };
 
-  getPlayerRevealArr() {
-    return this.playerRevealArr;
-  }
-  addPlayerRevealArr(line) {
-    this.playerRevealArr.push(line);
-  }
-  clearPlayerRevealArr() {
-    this.playerRevealArr = [];
-  }
+  
+  // others
+  getNumSpies() {
+    return this.numSpies;
+  };
+  setNumSpies(capacity) {
+    this.numSpies = capacity < 7 ? 2 
+                    : capacity < 10 ? 3 
+                    : 4;
+  };
 
-  setTimerSeconds(timerSeconds) {
-    this.timerSeconds = timerSeconds;
-  }
+  getMissionTeamSizes() {
+    return this.missionTeamSizes;
+  };
+  setMissionTeamSizes(missionTeamSizes) {
+    this.missionTeamSizes = missionTeamSizes;
+  };
 
-  getLeaderSelectedTeam() {
-    return this.leaderSelectedTeam;
-  }
-  setLeaderSelectedTeam(leaderSelectedTeam) {
-    this.leaderSelectedTeam = leaderSelectedTeam;
-  }
-
-  getRoomAdmin() {
-    const players = this.getPlayers();
-    for (let i = 0; i < players.length; i++) {
-      if (players[i].getIsAdmin()) {
-        return players[i].getUsername();
+  getPlayerUsername(index) {
+    return this.players[index].getUsername();
+  };
+  getPlayerByUsername(username, numPlayers) {
+    for (let i = 0; i < numPlayers; i++) {
+      if (this.getPlayerUsername(i) === username) {
+        return this.getPlayers()[i];
       }
     }
   };
+  removePlayer(username) {
+    for (let i = 0; i < this.players.length; i++) {
+      if (this.getPlayerUsername(i) === username) {
+        this.players.splice(i, 1);
+        this.seats.splice(i, 1);
+      }
+    }
+  }
+
+  setLeader(leader, leaderIndex, isLeader) { // seat change
+    leader.setIsLeader(isLeader);
+    for (let i = 0; i < this.capacity; i++) {
+      if (i === leaderIndex) {
+        this.seats[i][2] = true;
+      } else {
+        this.seats[i][2] = false;
+      }
+    }
+  }
+  getPlayerTeam(index) {
+    return this.players[index].getTeam();
+  }
+  setPlayerTeam(team, index) {
+    this.players[index].setTeam(team);
+  }
   
   /* --- Helpers --- */
   shuffle(array) {
