@@ -42,6 +42,14 @@ const io = new Server(server, { // for work with socket.io
 var games = new Map();
 
 /* --- HELPER FUNCTIONS --- */
+const getTime = () => {
+  var mins = new Date(Date.now()).getMinutes();
+  if (mins < 10) {
+    mins = "0" + mins;
+  }
+  return new Date(Date.now()).getHours() + ":" + mins;
+};
+
 const generateRoomCode = () => { // random room code
   return Array.from(Array(6), () => Math.floor(Math.random() * 36).toString(36)).join('');
 };
@@ -88,6 +96,12 @@ io.on("connection", (socket) => {
     return username;
   };
 
+  const sendInitialInfo = (game, msg) => {
+    game.updateChatMsg(io, msg);
+    game.updateSeats(io);
+    game.sendGameSettingsChanges(io);
+  };
+
   const handlePlayerJoin = (socket, username, roomCode, game, sendRoomValidity) => {
     const uniqueName = setAndReturnUniqueName(game, username);
     const player = newPlayer(uniqueName, false);
@@ -95,19 +109,17 @@ io.on("connection", (socket) => {
     game.addPlayer(player);
 
     const joinMsg = {
-      msg: `${uniqueName} has joined game`, sender: "PLAYER UPDATE", time: ""
+      msg: `${uniqueName} has joined game`, sender: "PLAYER UPDATE", time: getTime()
     };
-    game.updateChatMsg(io, joinMsg, roomCode);
-    game.updateSeats(io, roomCode);
-    game.sendGameSettingsChanges(io, roomCode);
-    sendRoomValidity({ roomExists: true });
+    sendInitialInfo(game, joinMsg);
+    sendRoomValidity({ roomExists: true, roomCode: roomCode });
   };
 
   const errorNotInLobby = (username) => {
     const error = {
       msg: `${username} not in lobby, try removing extra spaces in this command?`,
       sender: "ADMIN INFO",
-      time: ""
+      time: getTime()
     };
     io.to(socket.id).emit("msg_list_update", error);
   };
@@ -132,7 +144,7 @@ io.on("connection", (socket) => {
     const byeMsg = {
       msg: `${game.getPlayerById(socket.id, game.getPlayers().length)?.getUsername()} has disconnected`,
       sender: "PLAYER UPDATE",
-      time: ""
+      time: getTime()
     };
     io.to(roomCode).emit("msg_list_update", byeMsg);
 
@@ -150,15 +162,6 @@ io.on("connection", (socket) => {
         game.sendSeatingInfo(io);
       }
     }
-
-    // clean up all socket data, so on Safari, if they try to leave, then rejoin, then leave
-    // again the game they left, they can't run the disconnect functions above
-    socket.data.username = null;
-    socket.data.roomCode = null;
-    socket.data.isAdmin = null;
-    socket.data.capacity = null;
-    socket.data.selectionTimeSecs = null;
-    socket.data.privateRoom = null;
   });
 
   // CHECK IF CLIENT IN GAME
@@ -233,11 +236,9 @@ io.on("connection", (socket) => {
     games.set(roomCode, game);
 
     const createMsg = {
-      msg: `${username} has created game`, sender: "PLAYER UPDATE", time: ""
+      msg: `${username} has created game`, sender: "PLAYER UPDATE", time: getTime()
     };
-    game.updateChatMsg(io, createMsg, roomCode);
-    game.updateSeats(io, roomCode);
-    game.sendGameSettingsChanges(io, roomCode);
+    sendInitialInfo(game, createMsg);
     navigateTo({ room: roomCode });
   });
 
@@ -303,7 +304,7 @@ io.on("connection", (socket) => {
       const kickMsg = {
         msg: `${kickedUsername} was kicked by admin`,
         sender: "PLAYER UPDATE",
-        time: ""
+        time: getTime()
       };
       io.to(socket.data.roomCode).emit("msg_list_update", kickMsg);
       io.to(kickedPlayerId).emit("kicked_player");

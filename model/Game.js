@@ -309,7 +309,7 @@ class Game {
   };
 
   /* --- EMITS TO CLIENT --- */
-  updateSeats(io, roomCode) {
+  updateSeats(io) {
     // loop through players for info based on team
     var seats = [];
     for (let i = 0; i < this.players.length; i++) {
@@ -324,16 +324,16 @@ class Game {
       if (playerTeam === Team.Bad) seats[i][3] = player.getTeam();
     };
 
-    io.to(roomCode).emit("seats_update", seats);
+    io.to(this.roomCode).emit("seats_update", seats);
   };
 
-  updateChatMsg(io, msgData, roomCode) {
+  updateChatMsg(io, msgData) {
     this.addMsgList(msgData);
-    io.to(roomCode).emit("msg_list_update", this.msgList);
+    io.to(this.roomCode).emit("msg_list_update", this.msgList);
   };
 
-  sendGameSettingsChanges (io, roomCode) {
-    io.to(roomCode).emit("game_settings_update", {
+  sendGameSettingsChanges (io) {
+    io.to(this.roomCode).emit("game_settings_update", {
       roomCode: this.roomCode,
       roomAdminName: this.roomAdmin.getUsername(),
       capacity: this.capacity,
