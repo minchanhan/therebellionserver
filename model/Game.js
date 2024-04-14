@@ -54,7 +54,7 @@ class Game {
     this.missionHistory = missionHistory; // arr[[curSelectedPlayers, curVoteTally]]
   };
 
-  /* Properties */
+  /* --- Properties --- */
   getRoomCode() {
     return this.roomCode;
   };
@@ -213,7 +213,7 @@ class Game {
   };
 
   
-  // others
+  /* --- Other getters and setters --- */
   getNumSpies() {
     return this.numSpies;
   };
@@ -266,7 +266,7 @@ class Game {
     this.players[index].setTeam(team);
   }
   
-  /* --- Helpers --- */
+  /* --- Helper Functions --- */
   shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -280,10 +280,6 @@ class Game {
       arr.push(value);
     }
     return arr;
-  };
-
-  gameMasterSpeech(game, io, speech) {
-    io.to(game.getRoomCode()).emit("game_master_speech", speech);
   };
 
   startTimer(io) {
@@ -312,7 +308,39 @@ class Game {
     }, 1000);
   };
 
-  /* Game Logic */
+  /* --- EMITS TO CLIENT --- */
+  updateSeats(io, roomCode) {
+    // loop through players for info based on team
+    var seats = [];
+    for (let i = 0; i < this.players.length; i++) {
+      const player = this.players[i];
+      const playerTeam = player.getTeam();
+      seats.push([
+        player.getUsername(),
+        player.getIsLeader(),
+        player.getOnMission(),
+        Team.Unknown,
+      ]);
+      if (playerTeam === Team.Bad) seats[i][3] = player.getTeam();
+    };
+
+    io.to(roomCode).emit("seats_update", seats);
+  };
+
+  updateChatMsg(io, msgData, roomCode) {
+    this.addMsgList(msgData);
+    io.to(roomCode).emit("msg_list_update", this.msgList);
+  };
+
+  sendGameSettingsChanges (io, roomCode) {
+    io.to(roomCode).emit("game_settings_update", {
+      capacity: this.capacity,
+      selectionTimeSecs: this.selectionTimeSecs,
+      privateRoom: this.privateRoom
+    });
+  };
+
+  /* --- Game Logic Functions --- */
   randomizeSeatAndTeam() {
     this.clearSeats();
     this.clearPlayerRevealArr();
@@ -403,7 +431,6 @@ class Game {
     game.gameMasterSpeech(game, io, startMissionSpeech);
   };
 
-  // change leader
   changeLeader(game, io, resultSpeech) {
     // clean
     game.clearMissionResult();
@@ -442,10 +469,9 @@ class Game {
       sender: "PLAYER UPDATE",
       time: ""
     };
-    io.to(socket.data.roomCode).emit("receive_msg", adminTransferMsg);
+    io.to(socket.data.roomCode).emit("msg_list_update", adminTransferMsg);
   };
 
-  // Game states
   resetGameStates(game) {
     game.resetMission();
     game.clearCurVoteTally();
@@ -496,7 +522,7 @@ class Game {
       sender: "PLAYER UPDATE",
       time: ""
     };
-    io.to(game.getRoomCode()).emit("receive_msg", randomizeMsg);
+    io.to(game.getRoomCode()).emit("msg_list_update", randomizeMsg);
     // set timer
     // give leader powers, assign it the start
     game.letLeaderSelect(game, io, leader.getId());

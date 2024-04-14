@@ -41,7 +41,7 @@ const io = new Server(server, { // for work with socket.io
 
 var games = new Map();
 
-/* --- GENERIC HELPERS --- */
+/* --- HELPER FUNCTIONS --- */
 const generateRoomCode = () => { // random room code
   return Array.from(Array(6), () => Math.floor(Math.random() * 36).toString(36)).join('');
 };
@@ -55,53 +55,20 @@ const checkNameInGame = (username, curNumPlayers, game) => { // check if name ex
   return false;
 };
 
-/* --- IO CONNECTION --- */
+const newPlayer = (username, isAdmin) => {
+  var player = new Player(
+    username, // username
+    isAdmin, // isAdmin
+    Team.Unknown, // team
+    false, // isLeader
+    false, // onMission
+  );
+  return player;
+};
+
+/* ----- IO CONNECTION ----- */
 io.on("connection", (socket) => {
-  /* --- HELPER FUNCTIONS --- */
-  const sendGameSettingsChanges = (roomCode) => {  // send game settings to client
-    const game = games.get(roomCode);
-
-    io.to(roomCode).emit("game_settings_changed", {
-      capacity: game?.getCapacity(),
-      selectionTimeSecs: game.getSelectionTimeSecs(),
-      privateRoom: game.getCapacity()
-    });
-  };
-
-  const newPlayer = (username, isAdmin) => {
-    var player = new Player(
-      username, // username
-      isAdmin, // isAdmin
-      Team.Unknown, // team
-      false, // isLeader
-      false, // onMission
-    );
-    return player;
-  };
-
-  const makeAndJoinPlayer = (username, id, roomCode, game, io) => {
-    var player = newPlayer(username, false);
-
-    game.addPlayer(player);
-    // console.log(`User ${username} with id: ${id} joined room ${roomCode}`); //
-    io.to(id).emit("final_username_set", username);
-  
-    game.setSeat(player, Team.Unknown, false, false);
-    sendGameSettingsChanges(roomCode);
-    io.to(roomCode).emit("player_joined_lobby", { 
-      seats: game.getSeats(), 
-      room: roomCode, 
-      roomAdmin: game.getRoomAdmin() 
-    });
-
-    const joinMsg = {
-      msg: `${username} has joined game`,
-      sender: "PLAYER UPDATE",
-      time: ""
-    };
-    socket.to(roomCode).emit("receive_msg", joinMsg);
-  };
-
+  /* --- EMITS --- */
   const setAndReturnUniqueName = (game) => {
     // check for duplicate usernames
     var numDuplicates = 0;
@@ -121,15 +88,18 @@ io.on("connection", (socket) => {
     return socket.data.username;
   };
 
-  const handlePlayerJoin = (id, roomCode, game, io) => {
-    socket.data.roomCode = roomCode;
+  const handlePlayerJoin = (socket, roomCode, game) => {
     socket.join(roomCode);
-
     const uniqueName = setAndReturnUniqueName(game);
+    const player = newPlayer(uniqueName, false);
+    game.addPlayer(player);
+    sendGameSettingsChanges(roomCode);
 
-    // create Player and add to game and seat
-    // also emit to room that player joined
-    makeAndJoinPlayer(uniqueName, id, roomCode, game, io);
+    const joinMsg = {
+      msg: `${uniqueName} has joined game`, sender: "PLAYER UPDATE", time: ""
+    };
+    game.updateChatMsg(io, joinMsg, roomCode);
+
   };
 
   const errorNotInLobby = (username) => {
@@ -138,7 +108,7 @@ io.on("connection", (socket) => {
       sender: "ADMIN INFO",
       time: ""
     };
-    io.to(socket.id).emit("receive_msg", error);
+    io.to(socket.id).emit("msg_list_update", error);
   };
 
   /* --- Listeners --- */
@@ -163,7 +133,7 @@ io.on("connection", (socket) => {
       sender: "PLAYER UPDATE",
       time: ""
     };
-    io.to(roomCode).emit("receive_msg", byeMsg);
+    io.to(roomCode).emit("msg_list_update", byeMsg);
 
     if (game.getHasStarted()) { // In game, non lobby
       game.endGame(game, io, false, true, socket.id, socket.data.isAdmin, socket);
@@ -195,6 +165,19 @@ io.on("connection", (socket) => {
     areYouInRoom({ inRoom: socket.rooms.has(room) });
   });
 
+  // TELL CLIENT THEIR TEAM when seats are udpated
+  socket.on("get_my_team", (username, roomCode, giveTeam) => {
+    const game = games.get(roomCode);
+    const players = game.getPlayers();
+    for (let i = 0; i < game.getCapacity(); i++) {
+      if (players[i].getUsername() === username) {
+        giveTeam(players[i].getTeam());
+        return;
+      }
+    }
+  });
+
+
   // SET DATA RECEIVED BY CLIENT
   socket.on("set_capacity", (capacity) => { // game settings
     socket.data.capacity = capacity;
@@ -220,7 +203,7 @@ io.on("connection", (socket) => {
     const admin = newPlayer(username, true);
     const roomCode = generateRoomCode();
     socket.join(roomCode);
-    console.log("created room: ", roomCode)
+    console.log("created room: ", roomCode);
 
     const game = new Game(
       roomCode, // roomCode
@@ -251,21 +234,25 @@ io.on("connection", (socket) => {
     );
     games.set(roomCode, game);
     navigateTo({ room: roomCode });
+
+    const createMsg = {
+      msg: `${username} has created game`, sender: "PLAYER UPDATE", time: ""
+    };
+    game.updateChatMsg(io, createMsg, roomCode);
+    game.updateSeats(io, roomCode);
   });
 
   // JOIN ROOM
-  socket.on("join_room", (roomCode) => { // from JoinRoom modal, may need socket.once
-    // random join case
+  socket.on("join_room", (roomCode, sendRoomValidity) => {
     if (roomCode === "random_join") {
       for (let [room, game] of games) {
         if (game.getPlayers().length < game.getCapacity() && !game.getPrivateRoom()) {
-          handlePlayerJoin(socket.id, room, game, io);
+          handlePlayerJoin(socket, room, game);
           return;
         }
       }
-      // If not returned by end of loop, tell user there are no available games currently
-      // and to try again later or create a new room
-      socket.emit("no_random_game", "All games are currently full, please try again later...");
+      // If not returned by end of loop, there are no available games currently
+      sendRoomValidity({ joinRoomMsg:  "All games are currently full, please try again later..." })
       return;
     }
 
@@ -273,15 +260,14 @@ io.on("connection", (socket) => {
       const existingGame = games.get(roomCode);
       const fullGame = existingGame.getPlayers().length >= existingGame.getCapacity();
       if (!fullGame) {
-        socket.emit("room_with_code", { exists: true, reason: "" });
-        var game = existingGame;
-        handlePlayerJoin(socket.id, roomCode, game, io);
+        sendRoomValidity({ joinRoomMsg: "" });
+        handlePlayerJoin(socket, roomCode, existingGame);
       } else {
-        socket.emit("room_with_code", { exists: false, reason: "Game is full" });
+        sendRoomValidity({ joinRoomMsg: "Game is full" });
         return;
       }
     } else {
-      socket.emit("room_with_code", { exists: false, reason: "Room doesn't exist" });
+      sendRoomValidity({ joinRoomMsg: "Room doesn't exist" })
       return;
     }
   });
@@ -317,7 +303,7 @@ io.on("connection", (socket) => {
         sender: "PLAYER UPDATE",
         time: ""
       };
-      io.to(socket.data.roomCode).emit("receive_msg", kickMsg);
+      io.to(socket.data.roomCode).emit("msg_list_update", kickMsg);
       io.to(kickedPlayerId).emit("kicked_player");
       io.to(kickedPlayerId).emit("set_game_end", { playerRevealArr: [], endMsg: "", kicked: true });
       return;
@@ -338,7 +324,7 @@ io.on("connection", (socket) => {
     }
 
     // send back to all clients in room
-    socket.to(socket.data.roomCode).emit("receive_msg", msgData);
+    socket.to(socket.data.roomCode).emit("msg_list_update", msgData);
   });
 
   // GAMEPLAY
@@ -375,7 +361,7 @@ io.on("connection", (socket) => {
         time: `Mission ${game.getMission()}, Vote ${game.getCurMissionVoteDisapproves() + 1}`
       };
 
-      io.to(info.roomCode).emit("receive_msg", msgData); // send public tally to CHATBOX THIS TIME
+      io.to(info.roomCode).emit("msg_list_update", msgData); // send public tally to CHATBOX THIS TIME
     
       if (voteApproved) {
         // commence mission
