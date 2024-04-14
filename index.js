@@ -69,37 +69,38 @@ const newPlayer = (username, isAdmin) => {
 /* ----- IO CONNECTION ----- */
 io.on("connection", (socket) => {
   /* --- EMITS --- */
-  const setAndReturnUniqueName = (game) => {
+  const setAndReturnUniqueName = (game, username) => {
     // check for duplicate usernames
     var numDuplicates = 0;
     var isDuplicate = false;
     while (checkNameInGame(username, game.getPlayers().length, game)) {
       numDuplicates += 1;
       if (isDuplicate) { // duplicate of a duplicate lol
-        socket.data.username = socket.data.username.slice(0, -1);
+        username = username.slice(0, -1);
       }
-      if (socket.data.username.length < 9) {
-        socket.data.username = socket.data.username + numDuplicates;
+      if (username.length < 9) {
+        username = username + numDuplicates;
       } else {
-        socket.data.username = socket.data.username.slice(0, -1) + numDuplicates;
+        username = username.slice(0, -1) + numDuplicates;
       }
       isDuplicate = true;
     }
-    return socket.data.username;
+    return username;
   };
 
-  const handlePlayerJoin = (socket, roomCode, game) => {
-    socket.join(roomCode);
-    const uniqueName = setAndReturnUniqueName(game);
+  const handlePlayerJoin = (socket, username, roomCode, game, sendRoomValidity) => {
+    const uniqueName = setAndReturnUniqueName(game, username);
     const player = newPlayer(uniqueName, false);
+    socket.join(roomCode);
     game.addPlayer(player);
-    sendGameSettingsChanges(roomCode);
 
     const joinMsg = {
       msg: `${uniqueName} has joined game`, sender: "PLAYER UPDATE", time: ""
     };
     game.updateChatMsg(io, joinMsg, roomCode);
-
+    game.updateSeats(io, roomCode);
+    game.sendGameSettingsChanges(io, roomCode);
+    sendRoomValidity({ roomExists: true });
   };
 
   const errorNotInLobby = (username) => {
@@ -177,24 +178,21 @@ io.on("connection", (socket) => {
     }
   });
 
-
   // SET DATA RECEIVED BY CLIENT
-  socket.on("set_capacity", (capacity) => { // game settings
-    socket.data.capacity = capacity;
-    games.get(socket.data.roomCode)?.setCapacity(capacity);
-    games.get(socket.data.roomCode)?.setNumSpies(capacity);
-    sendGameSettingsChanges(socket.data.roomCode);
+  socket.on("set_capacity", (capacity, roomCode) => { // game settings
+    const game = games.get(roomCode);
+    game?.setCapacity(capacity);
+    game?.sendGameSettingsChanges(io, roomCode);
   });
-  socket.on("set_selection_time", (selectionTimeSecs) => { // game settings
-    socket.data.selectionTimeSecs = selectionTimeSecs;
-    games.get(socket.data.roomCode)?.setSelectionTimeSecs(selectionTimeSecs);
-    games.get(socket.data.roomCode)?.setTimerSeconds(selectionTimeSecs * 60);
-    sendGameSettingsChanges(socket.data.roomCode);
+  socket.on("set_selection_time", (selectionTimeSecs, roomCode) => { // game settings
+    const game = games.get(roomCode);
+    game?.setSelectionTimeSecs(selectionTimeSecs);
+    game?.sendGameSettingsChanges(io, roomCode);
   });
-  socket.on("set_private", (privateRoom) => { // game settings
-    socket.data.privateRoom = privateRoom;
-    games.get(socket.data.roomCode)?.setPrivateRoom(privateRoom);
-    sendGameSettingsChanges(socket.data.roomCode);
+  socket.on("set_private_room", (privateRoom, roomCode) => { // game settings
+    const game = games.get(roomCode);
+    game?.setPrivateRoom(privateRoom);
+    game?.sendGameSettingsChanges(io, roomCode);
   });
 
   // CREATE ROOM
@@ -233,26 +231,30 @@ io.on("connection", (socket) => {
       [], // missionHistory
     );
     games.set(roomCode, game);
-    navigateTo({ room: roomCode });
 
     const createMsg = {
       msg: `${username} has created game`, sender: "PLAYER UPDATE", time: ""
     };
     game.updateChatMsg(io, createMsg, roomCode);
     game.updateSeats(io, roomCode);
+    game.sendGameSettingsChanges(io, roomCode);
+    navigateTo({ room: roomCode });
   });
 
   // JOIN ROOM
-  socket.on("join_room", (roomCode, sendRoomValidity) => {
+  socket.on("join_room", (username, roomCode, sendRoomValidity) => {
     if (roomCode === "random_join") {
       for (let [room, game] of games) {
         if (game.getPlayers().length < game.getCapacity() && !game.getPrivateRoom()) {
-          handlePlayerJoin(socket, room, game);
+          handlePlayerJoin(socket, username, room, game, sendRoomValidity);
           return;
         }
       }
       // If not returned by end of loop, there are no available games currently
-      sendRoomValidity({ joinRoomMsg:  "All games are currently full, please try again later..." })
+      sendRoomValidity({ 
+        roomExists: false,
+        joinRoomMsg:  "All games are currently full, please try again later..." 
+      });
       return;
     }
 
@@ -260,14 +262,14 @@ io.on("connection", (socket) => {
       const existingGame = games.get(roomCode);
       const fullGame = existingGame.getPlayers().length >= existingGame.getCapacity();
       if (!fullGame) {
-        sendRoomValidity({ joinRoomMsg: "" });
-        handlePlayerJoin(socket, roomCode, existingGame);
+        handlePlayerJoin(socket, username, roomCode, existingGame, sendRoomValidity);
+        return;
       } else {
-        sendRoomValidity({ joinRoomMsg: "Game is full" });
+        sendRoomValidity({ roomExists: false, joinRoomMsg: "Game is full" });
         return;
       }
     } else {
-      sendRoomValidity({ joinRoomMsg: "Room doesn't exist" })
+      sendRoomValidity({ roomExists: false, joinRoomMsg: "Room doesn't exist" })
       return;
     }
   });

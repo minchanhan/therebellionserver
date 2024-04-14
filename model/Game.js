@@ -334,6 +334,8 @@ class Game {
 
   sendGameSettingsChanges (io, roomCode) {
     io.to(roomCode).emit("game_settings_update", {
+      roomCode: this.roomCode,
+      roomAdminName: this.roomAdmin.getUsername(),
       capacity: this.capacity,
       selectionTimeSecs: this.selectionTimeSecs,
       privateRoom: this.privateRoom
