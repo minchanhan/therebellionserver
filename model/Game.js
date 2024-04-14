@@ -54,7 +54,7 @@ class Game {
     this.missionHistory = missionHistory; // arr[[curSelectedPlayers, curVoteTally]]
   };
 
-  /* --- Properties --- */
+  /* ===== PROPERTIES ===== */
   getRoomCode() {
     return this.roomCode;
   };
@@ -213,41 +213,21 @@ class Game {
   };
 
   
-  /* --- Other getters and setters --- */
+  /* ===== OTHER GETTERS & SETTERS ===== */
   getNumSpies() {
-    return this.numSpies;
-  };
-  setNumSpies(capacity) {
-    this.numSpies = capacity < 7 ? 2 
-                    : capacity < 10 ? 3 
-                    : 4;
+    return this.capacity < 7 ? 2 
+    : this.capacity < 10 ? 3 
+    : 4;
   };
 
   getMissionTeamSizes() {
-    return this.missionTeamSizes;
+    const missionTeamSize1 = this.capacity <= 7 ? 2 : 3;
+    const missionTeamSize2 = this.capacity <= 7 ? 3 : 4;
+    const missionTeamSize3 = this.capacity === 5 ? 2 : (this.capacity === 7) ? 3 : 4;
+    const missionTeamSize4 = this.capacity <= 6 ? 3 : (this.capacity === 7) ? 4 : 5;
+    const missionTeamSize5 = this.capacity === 5 ? 3 : (this.capacity <= 7) ? 4 : 5;
+    return [missionTeamSize1, missionTeamSize2, missionTeamSize3, missionTeamSize4, missionTeamSize5];
   };
-  setMissionTeamSizes(missionTeamSizes) {
-    this.missionTeamSizes = missionTeamSizes;
-  };
-
-  getPlayerUsername(index) {
-    return this.players[index].getUsername();
-  };
-  getPlayerByUsername(username, numPlayers) {
-    for (let i = 0; i < numPlayers; i++) {
-      if (this.getPlayerUsername(i) === username) {
-        return this.getPlayers()[i];
-      }
-    }
-  };
-  removePlayer(username) {
-    for (let i = 0; i < this.players.length; i++) {
-      if (this.getPlayerUsername(i) === username) {
-        this.players.splice(i, 1);
-        this.seats.splice(i, 1);
-      }
-    }
-  }
 
   setLeader(leader, leaderIndex, isLeader) { // seat change
     leader.setIsLeader(isLeader);
@@ -259,14 +239,8 @@ class Game {
       }
     }
   }
-  getPlayerTeam(index) {
-    return this.players[index].getTeam();
-  }
-  setPlayerTeam(team, index) {
-    this.players[index].setTeam(team);
-  }
   
-  /* --- Helper Functions --- */
+  /* ===== HELPER FUNCTIONS ===== */
   shuffle(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -308,7 +282,7 @@ class Game {
     }, 1000);
   };
 
-  /* --- EMITS TO CLIENT --- */
+  /* ===== EMITS TO CLIENT ===== */
   updateSeats(io) {
     // loop through players for info based on team
     var seats = [];
@@ -338,11 +312,13 @@ class Game {
       roomAdminName: this.roomAdmin.getUsername(),
       capacity: this.capacity,
       selectionTimeSecs: this.selectionTimeSecs,
-      privateRoom: this.privateRoom
+      privateRoom: this.privateRoom,
+      numGames: this.numGames,
+      missionTeamSizes: this.getMissionTeamSizes(),
     });
   };
 
-  /* --- Game Logic Functions --- */
+  /* ===== GAME LOGIC FUNCTIONS ===== */
   randomizeSeatAndTeam() {
     this.clearSeats();
     this.clearPlayerRevealArr();
@@ -360,25 +336,6 @@ class Game {
         `${player.getUsername()} was ${player.getTeam() === "badTeam" ? "an evil spy" : "part of the rebellion"}`,
         player.getTeam()
       ]);
-    }
-  };
-
-  sendSeatingInfo(io) {
-    const seats = this.getSeats();
-    const numPlayers = seats.length;
-
-    var coveredSeats = JSON.parse(JSON.stringify(seats)); // deep copy of seats, team will be covered
-    for (let i = 0; i < numPlayers; i++) {
-      coveredSeats[i][1] = Team.Unknown;
-    }
-
-    for (let i = 0; i < numPlayers; i++) {
-      const player = this.getPlayerByUsername(seats[i][0], numPlayers);
-      if (player.getTeam() === Team.Bad) {
-        io.to(player.getId()).emit("seats_info_share", seats);
-      } else {
-        io.to(player.getId()).emit("seats_info_share", coveredSeats);
-      }
     }
   };
 

@@ -12,7 +12,7 @@ const MissionResult = require("./Enums/MissionResult.js");
 
 dotenv.config();
 
-/* --- SERVER SETUP --- */
+/* ===== SERVER SETUP ===== */
 const app = express();
 
 const origin = process.env.NODE_ENV === "dev" ? "http://localhost:3000" : "https://therebelliongame.com";
@@ -41,7 +41,7 @@ const io = new Server(server, { // for work with socket.io
 
 var games = new Map();
 
-/* --- HELPER FUNCTIONS --- */
+/* ===== HELPER FUNCTIONS ===== */
 const getTime = () => {
   var mins = new Date(Date.now()).getMinutes();
   if (mins < 10) {
@@ -56,11 +56,30 @@ const generateRoomCode = () => { // random room code
 
 const checkNameInGame = (username, curNumPlayers, game) => { // check if name exists in game
   for (let i = 0; i < curNumPlayers; i++) {
-    if (game.getPlayerUsername(i) === username) {
+    if (game.getPlayers()[i].getUsername() === username) {
       return true;
     }
   }
   return false;
+};
+
+const setAndReturnUniqueName = (game, username) => {
+  // check for duplicate usernames
+  var numDuplicates = 0;
+  var isDuplicate = false;
+  while (checkNameInGame(username, game.getPlayers().length, game)) {
+    numDuplicates += 1;
+    if (isDuplicate) { // duplicate of a duplicate lol
+      username = username.slice(0, -1);
+    }
+    if (username.length < 9) {
+      username = username + numDuplicates;
+    } else {
+      username = username.slice(0, -1) + numDuplicates;
+    }
+    isDuplicate = true;
+  }
+  return username;
 };
 
 const newPlayer = (username, isAdmin) => {
@@ -74,32 +93,21 @@ const newPlayer = (username, isAdmin) => {
   return player;
 };
 
-/* ----- IO CONNECTION ----- */
 io.on("connection", (socket) => {
-  /* --- EMITS --- */
-  const setAndReturnUniqueName = (game, username) => {
-    // check for duplicate usernames
-    var numDuplicates = 0;
-    var isDuplicate = false;
-    while (checkNameInGame(username, game.getPlayers().length, game)) {
-      numDuplicates += 1;
-      if (isDuplicate) { // duplicate of a duplicate lol
-        username = username.slice(0, -1);
-      }
-      if (username.length < 9) {
-        username = username + numDuplicates;
-      } else {
-        username = username.slice(0, -1) + numDuplicates;
-      }
-      isDuplicate = true;
-    }
-    return username;
-  };
-
+  /* ===== EMITS ===== */
   const sendInitialInfo = (game, msg) => {
     game.updateChatMsg(io, msg);
     game.updateSeats(io);
     game.sendGameSettingsChanges(io);
+  };
+
+  const sendNotInLobby = (username) => {
+    const error = {
+      msg: `${username} not in lobby, try removing extra spaces in this command?`,
+      sender: "ADMIN INFO",
+      time: getTime()
+    };
+    io.to(socket.id).emit("msg_list_update", error);
   };
 
   const handlePlayerJoin = (socket, username, roomCode, game, sendRoomValidity) => {
@@ -115,20 +123,11 @@ io.on("connection", (socket) => {
     sendRoomValidity({ roomExists: true, roomCode: roomCode });
   };
 
-  const errorNotInLobby = (username) => {
-    const error = {
-      msg: `${username} not in lobby, try removing extra spaces in this command?`,
-      sender: "ADMIN INFO",
-      time: getTime()
-    };
-    io.to(socket.id).emit("msg_list_update", error);
-  };
-
-  /* --- Listeners --- */
-  // CONNECTION
+  /* ===== EVENT LISTENERS ===== */
+  /* ----- CONNECTION ----- */
   console.log(`User Connected: ${socket.id}`);
 
-  // DISCONNECT
+  /* ----- DISCONNECTION ----- */
   socket.on("disconnect", (reason, details) => {
     console.log(`User ${socket.id} disconnected because: ${reason}`);
     console.log(`disconnect details: ${details}`);
@@ -164,12 +163,12 @@ io.on("connection", (socket) => {
     }
   });
 
-  // CHECK IF CLIENT IN GAME
+  /* ----- IN ROOM CHECK ----- */
   socket.on("am_i_in_room", (room, areYouInRoom) => {
     areYouInRoom({ inRoom: socket.rooms.has(room) });
   });
 
-  // TELL CLIENT THEIR TEAM when seats are udpated
+  /* ----- TELL CLIENT TEAM ----- */
   socket.on("get_my_team", (username, roomCode, giveTeam) => {
     const game = games.get(roomCode);
     const players = game.getPlayers();
@@ -181,24 +180,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // SET DATA RECEIVED BY CLIENT
-  socket.on("set_capacity", (capacity, roomCode) => { // game settings
-    const game = games.get(roomCode);
-    game?.setCapacity(capacity);
-    game?.sendGameSettingsChanges(io, roomCode);
-  });
-  socket.on("set_selection_time", (selectionTimeSecs, roomCode) => { // game settings
-    const game = games.get(roomCode);
-    game?.setSelectionTimeSecs(selectionTimeSecs);
-    game?.sendGameSettingsChanges(io, roomCode);
-  });
-  socket.on("set_private_room", (privateRoom, roomCode) => { // game settings
-    const game = games.get(roomCode);
-    game?.setPrivateRoom(privateRoom);
-    game?.sendGameSettingsChanges(io, roomCode);
-  });
-
-  // CREATE ROOM
+  /* ----- CREATE ROOM ----- */
   socket.on("create_room", (username, navigateTo) => {
     // create room code
     const admin = newPlayer(username, true);
@@ -242,7 +224,7 @@ io.on("connection", (socket) => {
     navigateTo({ room: roomCode });
   });
 
-  // JOIN ROOM
+  /* ----- JOIN ROOM ----- */
   socket.on("join_room", (username, roomCode, sendRoomValidity) => {
     if (roomCode === "random_join") {
       for (let [room, game] of games) {
@@ -275,7 +257,24 @@ io.on("connection", (socket) => {
     }
   });
 
-  // MESSAGES
+  /* ----- GAME SETTINGS ----- */
+  socket.on("set_capacity", (capacity, roomCode) => { // game settings
+    const game = games.get(roomCode);
+    game?.setCapacity(capacity);
+    game?.sendGameSettingsChanges(io, roomCode);
+  });
+  socket.on("set_selection_time", (selectionTimeSecs, roomCode) => { // game settings
+    const game = games.get(roomCode);
+    game?.setSelectionTimeSecs(selectionTimeSecs);
+    game?.sendGameSettingsChanges(io, roomCode);
+  });
+  socket.on("set_private_room", (privateRoom, roomCode) => { // game settings
+    const game = games.get(roomCode);
+    game?.setPrivateRoom(privateRoom);
+    game?.sendGameSettingsChanges(io, roomCode);
+  });
+
+  /* ----- MESSAGES ----- */
   socket.on("send_msg", (msgData) => {
     const game = games.get(socket.data.roomCode);
     const msgLen = msgData.msg.length;
@@ -293,7 +292,7 @@ io.on("connection", (socket) => {
       const kickedUsername = msgData.msg.slice(6, msgLen);
       if (kickedUsername === socket.data.username) return;
       if (!checkNameInGame(kickedUsername, game.getPlayers().length, game)) {
-        errorNotInLobby(kickedUsername);
+        sendNotInLobby(kickedUsername);
         return;
       }
       
@@ -317,7 +316,7 @@ io.on("connection", (socket) => {
       if (newAdminUsername === socket.data.username) return;
 
       if (!checkNameInGame(newAdminUsername, game.getPlayers().length, game)) {
-        errorNotInLobby(newAdminUsername);
+        sendNotInLobby(newAdminUsername);
         return;
       }
 
@@ -330,7 +329,7 @@ io.on("connection", (socket) => {
     socket.to(socket.data.roomCode).emit("msg_list_update", msgData);
   });
 
-  // GAMEPLAY
+  /* ----- GAMEPLAY ----- */
   socket.on("admin_start_game", () => {
     const game = games.get(socket.data.roomCode);
     game.startGame(game, io);
