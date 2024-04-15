@@ -174,18 +174,6 @@ io.on("connection", (socket) => {
     areYouInRoom({ inRoom: socket.rooms.has(room) });
   });
 
-  /* ----- TELL CLIENT TEAM ----- */
-  socket.on("get_my_team", (username, roomCode, giveTeam) => {
-    const game = games.get(roomCode);
-    const players = game.getPlayers();
-    for (let i = 0; i < game.getCapacity(); i++) {
-      if (players[i].getUsername() === username) {
-        giveTeam(players[i].getTeam());
-        return;
-      }
-    }
-  });
-
   /* ----- CREATE ROOM ----- */
   socket.on("create_room", (username, navigateTo) => {
     // create room code
@@ -219,7 +207,7 @@ io.on("connection", (socket) => {
         MissionResult.None, 
         MissionResult.None
       ], // missionResultTrack
-      [], // missionHistory
+      [[],[],[],[],[]], // missionHistory
     );
     games.set(roomCode, game);
 
@@ -340,7 +328,7 @@ io.on("connection", (socket) => {
     game.startGame(game, io);
   });
 
-  socket.on("selected_players_for_vote", (info) => { // 1
+  socket.on("team_submitted_for_vote", (info) => { // 1
     const game = games.get(info.roomCode);
     game.setLeaderSelectedTeam(true);
     game.handleVote(game, io, info.selectedPlayers, info.roomCode);

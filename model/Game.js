@@ -51,7 +51,7 @@ class Game {
     this.curMissionFails = curMissionFails; // int
     this.missionResultTrack = missionResultTrack; // arr[MissionResult (None, Pass, Fail)]
     
-    this.missionHistory = missionHistory; // arr[[curSelectedPlayers, curVoteTally]]
+    this.missionHistory = missionHistory; // arr[curSelectedPlayers]
   };
 
   /* ===== PROPERTIES ===== */
@@ -142,7 +142,13 @@ class Game {
       }
     }
   }
-
+  resetPlayers() {
+    for (let i = 0; i < this.players; i++) {
+      this.players[i].setTeam(Team.Unknown);
+      this.players[i].setIsLeader(false);
+      this.players[i].setOnMission(false);
+    }
+  }
 
   getMsgList() {
     return this.msgList;
@@ -157,12 +163,9 @@ class Game {
   getCurMission() {
     return this.curMission;
   };
-  addCurMission() {
-    this.curMission += 1;
-  };
-  resetCurMission() {
-    this.curMission = 1;
-  };
+  setCurMission(curMission) {
+    this.curMission = curMission;
+  }
 
   getCurSelectedPlayers() {
     return this.curSelectedPlayers;
@@ -174,7 +177,7 @@ class Game {
   getCurVoteTally() {
     return this.curVoteTally;
   };
-  setCurVoteTally(approve, voter) {
+  addCurVoteTally(approve, voter) {
     approve ? this.curVoteTally[0].push(voter) : this.curVoteTally[1].push(voter);
   };
   clearCurVoteTally() {
@@ -191,12 +194,9 @@ class Game {
   getCurMissionFails() {
     return this.curMissionFails;
   };
-  addCurMissionFails() {
-    this.curMissionFails += 1;
-  };
-  clearCurMissionFails() {
-    this.curMissionFails = 0;
-  };
+  setCurMissionFails(curMissionFails) {
+    this.curMissionFails = curMissionFails;
+  }
 
   getMissionResultTrack() {
     return this.missionResultTrack;
@@ -217,9 +217,12 @@ class Game {
   getMissionHistory() {
     return this.missionHistory;
   };
-  setMissionHistory(missionHistory) {
-    this.missionHistory = missionHistory;
+  setMissionHistory(missionHistory, mission) {
+    this.missionHistory[mission] = missionHistory;
   };
+  clearMissionHistory() {
+    this.missionHistory = [[],[],[],[],[]];
+  }
 
   
   /* ===== OTHER GETTERS & SETTERS ===== */
@@ -353,7 +356,7 @@ class Game {
     game.setTimerSeconds(game.getSelectionTimeSecs());
     for (let i = 0; i < game.getCapacity(); i++) {
       var playerId = game.getPlayers()[i].getId();
-      io.to(playerId).emit("leader_is_selecting", { isSelecting: playerId === leaderId, secs: game.getSelectionTimeSecs()});
+      io.to(playerId).emit("team_select_happening", { isSelecting: playerId === leaderId, secs: game.getSelectionTimeSecs()});
     }
 
     game.startTimer(io);
@@ -372,7 +375,7 @@ class Game {
     }
 
     game.sendSeatingInfo(io);
-    io.in(room).emit("vote_on_these_players", { selectedPlayers: selectedMembers });
+    io.in(room).emit("vote_happening", { selectedPlayers: selectedMembers });
     
     // send out msg
     const speech = !random ? `Very well, soldiers, please approve or disapprove ${selectedMembers.join(', ')} carrying \
@@ -389,7 +392,7 @@ class Game {
     for (let i = 0; i < cap; i++) { // send pass/fail action to players onMissionTeam
       const onMissionTeam = seats[i][3];
       var playerId = game.getPlayers()[i].getId();
-      io.to(playerId).emit("go_on_mission", onMissionTeam);
+      io.to(playerId).emit("mission_happening", onMissionTeam);
     }
 
     game.setCurMissionVoteDisapproves(0); // Reset vote count
