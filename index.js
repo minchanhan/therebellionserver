@@ -34,7 +34,7 @@ const server = http.createServer(app);
 const io = new Server(server, { // for work with socket.io
   cors: corsOptions,
   connectionStateRecovery: {
-    maxDisconnectionDuration: 2 * 60 * 1000, // 2 mins backup
+    maxDisconnectionDuration: 3 * 60 * 1000, // 3 mins backup
     skipMiddlewares: true,
   }
 });
@@ -82,8 +82,9 @@ const setAndReturnUniqueName = (game, username) => {
   return username;
 };
 
-const newPlayer = (username, isAdmin) => {
+const newPlayer = (id, username, isAdmin) => {
   var player = new Player(
+    id,
     username, // username
     isAdmin, // isAdmin
     Team.Unknown, // team
@@ -94,6 +95,11 @@ const newPlayer = (username, isAdmin) => {
 };
 
 io.on("connection", (socket) => {
+  if (socket.recovered) {
+    console.log("socket recovered..? so we good");
+  } else {
+    console.log("socket did not recover, we gonna have to do something");
+  }
   /* ===== EMITS ===== */
   const sendInitialInfo = (game, msg) => {
     game.updateChatMsg(io, msg);
@@ -112,7 +118,7 @@ io.on("connection", (socket) => {
 
   const handlePlayerJoin = (socket, username, roomCode, game, sendRoomValidity) => {
     const uniqueName = setAndReturnUniqueName(game, username);
-    const player = newPlayer(uniqueName, false);
+    const player = newPlayer(socket.id, uniqueName, false);
     socket.join(roomCode);
     game.addPlayer(player);
 
@@ -120,7 +126,7 @@ io.on("connection", (socket) => {
       msg: `${uniqueName} has joined game`, sender: "PLAYER UPDATE", time: getTime()
     };
     sendInitialInfo(game, joinMsg);
-    sendRoomValidity({ roomExists: true, roomCode: roomCode });
+    sendRoomValidity({ roomExists: true, roomCode: roomCode, uniqueName: uniqueName });
   };
 
   /* ===== EVENT LISTENERS ===== */
@@ -154,7 +160,7 @@ io.on("connection", (socket) => {
         games.delete(roomCode); // no emit needed, there'll be nothing left
         console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
       } else {
-        game.removePlayer(socket.id);
+        game.removePlayer(username);
         if (socket.data.isAdmin) {
           game.changeRoomAdmin(game, game.getPlayers()[0].getUsername(), false, io, socket);
         }
@@ -183,7 +189,7 @@ io.on("connection", (socket) => {
   /* ----- CREATE ROOM ----- */
   socket.on("create_room", (username, navigateTo) => {
     // create room code
-    const admin = newPlayer(username, true);
+    const admin = newPlayer(socket.id, username, true);
     const roomCode = generateRoomCode();
     socket.join(roomCode);
     console.log("created room: ", roomCode);
@@ -275,8 +281,8 @@ io.on("connection", (socket) => {
   });
 
   /* ----- MESSAGES ----- */
-  socket.on("send_msg", (msgData) => {
-    const game = games.get(socket.data.roomCode);
+  socket.on("send_msg", (msgData, roomCode, isAdmin, username) => {
+    const game = games.get(roomCode);
     const msgLen = msgData.msg.length;
 
     if (msgData.msg === process.env.GAMES_SIZE_CMD) {
@@ -288,32 +294,31 @@ io.on("connection", (socket) => {
       return;
     }
 
-    if (msgData.msg.slice(0, 5) === "/kick" && !game.getHasStarted() && socket.data.isAdmin) {
+    if (msgData.msg.slice(0, 5) === "/kick" && !game.getHasStarted() && isAdmin) {
       const kickedUsername = msgData.msg.slice(6, msgLen);
-      if (kickedUsername === socket.data.username) return;
+      if (kickedUsername === username) return;
       if (!checkNameInGame(kickedUsername, game.getPlayers().length, game)) {
         sendNotInLobby(kickedUsername);
         return;
       }
       
-      const kickedPlayerId = game.getPlayerByUsername(kickedUsername, game.getSeats().length).getId();
-      game.removePlayer(kickedPlayerId);
-      game.sendSeatingInfo(io);
+      game.removePlayer(kickedUsername);
 
       const kickMsg = {
         msg: `${kickedUsername} was kicked by admin`,
         sender: "PLAYER UPDATE",
         time: getTime()
       };
-      io.to(socket.data.roomCode).emit("msg_list_update", kickMsg);
+      game.updateSeats(io);
+      game.updateChatMsg(io, kickMsg);
       io.to(kickedPlayerId).emit("kicked_player");
       io.to(kickedPlayerId).emit("set_game_end", { playerRevealArr: [], endMsg: "", kicked: true });
       return;
     }
 
-    if (msgData.msg.slice(0, 6) === "/admin" && socket.data.isAdmin) {
+    if (msgData.msg.slice(0, 6) === "/admin" && isAdmin) {
       const newAdminUsername = msgData.msg.slice(7, msgLen);
-      if (newAdminUsername === socket.data.username) return;
+      if (newAdminUsername === username) return;
 
       if (!checkNameInGame(newAdminUsername, game.getPlayers().length, game)) {
         sendNotInLobby(newAdminUsername);

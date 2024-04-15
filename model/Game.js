@@ -29,7 +29,7 @@ class Game {
     this.capacity = capacity; // int
     this.privateRoom = privateRoom; // bool
     this.selectionTimeSecs = selectionTimeSecs; // int (in seconds)
-    this.numGames = numGames;
+    this.numGames = numGames; // int
 
     // game states
     this.hasStarted = hasStarted; // bool
@@ -134,6 +134,15 @@ class Game {
   addPlayer(player) {
     this.players.push(player);
   };
+  removePlayer(username) {
+    for (let i = 0; i < this.players.length; i++) {
+      if (this.players[i].getUsername() === username) {
+        this.players.splice(i, 1);
+        return;
+      }
+    }
+  }
+
 
   getMsgList() {
     return this.msgList;
