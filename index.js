@@ -227,7 +227,7 @@ io.on("connection", (socket) => {
       // If not returned by end of loop, there are no available games currently
       sendRoomValidity({ 
         roomExists: false,
-        joinRoomMsg:  "All games are currently full, please try again later..." 
+        msg:  "All games are currently full, please try again later..." 
       });
       return;
     }
@@ -239,11 +239,11 @@ io.on("connection", (socket) => {
         handlePlayerJoin(socket, username, roomCode, existingGame, sendRoomValidity);
         return;
       } else {
-        sendRoomValidity({ roomExists: false, joinRoomMsg: "Game is full" });
+        sendRoomValidity({ roomExists: false, msg: "Game is full" });
         return;
       }
     } else {
-      sendRoomValidity({ roomExists: false, joinRoomMsg: "Room doesn't exist" })
+      sendRoomValidity({ roomExists: false, msg: "Room doesn't exist" })
       return;
     }
   });
