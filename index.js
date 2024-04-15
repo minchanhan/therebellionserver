@@ -118,7 +118,6 @@ io.on("connection", (socket) => {
   };
 
   const handlePlayerJoin = (socket, username, roomCode, game, sendRoomValidity) => {
-    console.log("handlePlayerJoin called");
     const uniqueName = setAndReturnUniqueName(game, username);
     const player = newPlayer(socket.id, uniqueName, false);
     socket.join(roomCode);
