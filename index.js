@@ -118,6 +118,7 @@ io.on("connection", (socket) => {
   };
 
   const handlePlayerJoin = (socket, username, roomCode, game, sendRoomValidity) => {
+    console.log("handlePlayerJoin called");
     const uniqueName = setAndReturnUniqueName(game, username);
     const player = newPlayer(socket.id, uniqueName, false);
     socket.join(roomCode);
@@ -184,7 +185,7 @@ io.on("connection", (socket) => {
       admin, // roomAdmin
       6, // capacity
       true, // private room
-      7 * 60, // selectionTimeSecs
+      7 * 60, // selectionSecs
       1, // numGames
       false, // hasStarted
       false, // teamSelectHappening
@@ -249,20 +250,17 @@ io.on("connection", (socket) => {
   });
 
   /* ----- GAME SETTINGS ----- */
-  socket.on("set_capacity", (capacity, roomCode) => { // game settings
-    const game = games.get(roomCode);
-    game?.setCapacity(capacity);
-    game?.sendGameSettingsChanges(io, roomCode);
+  socket.on("set_capacity", (newCapacity, roomCode) => { // game settings
+    games.get(roomCode).setCapacity(newCapacity);
+    io.to(roomCode).emit("capacity_change", newCapacity);
   });
-  socket.on("set_selection_time", (selectionTimeSecs, roomCode) => { // game settings
-    const game = games.get(roomCode);
-    game?.setSelectionTimeSecs(selectionTimeSecs);
-    game?.sendGameSettingsChanges(io, roomCode);
+  socket.on("set_selection_secs", (newSecs, roomCode) => { // game settings
+    games.get(roomCode).setSelectionSecs(newSecs);
+    io.to(roomCode).emit("selection_secs_change", newSecs);
   });
-  socket.on("set_private_room", (privateRoom, roomCode) => { // game settings
-    const game = games.get(roomCode);
-    game?.setPrivateRoom(privateRoom);
-    game?.sendGameSettingsChanges(io, roomCode);
+  socket.on("set_private_room", (newPrivateRoom, roomCode) => { // game settings
+    games.get(roomCode).setPrivateRoom(newPrivateRoom);
+    io.to(roomCode).emit("private_room_change", newPrivateRoom);
   });
 
   /* ----- MESSAGES ----- */

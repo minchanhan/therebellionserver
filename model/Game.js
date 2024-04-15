@@ -7,7 +7,7 @@ class Game {
     roomAdmin, 
     capacity, 
     privateRoom, 
-    selectionTimeSecs,
+    selectionSecs,
     numGames,
     hasStarted, 
     teamSelectHappening,
@@ -28,7 +28,7 @@ class Game {
     this.roomAdmin = roomAdmin; // Player
     this.capacity = capacity; // int
     this.privateRoom = privateRoom; // bool
-    this.selectionTimeSecs = selectionTimeSecs; // int (in seconds)
+    this.selectionSecs = selectionSecs; // int (in seconds)
     this.numGames = numGames; // int
 
     // game states
@@ -83,11 +83,11 @@ class Game {
     this.privateRoom = privateRoom;
   };
 
-  getSelectionTimeSecs() {
-    return this.selectionTimeSecs;
+  getSelectionSecs() {
+    return this.selectionSecs;
   };
-  setSelectionTimeSecs(selectionTimeSecs) {
-    this.selectionTimeSecs = selectionTimeSecs;
+  setSelectionSecs(selectionSecs) {
+    this.selectionSecs = selectionSecs;
   };
 
   getNumGames() {
@@ -300,7 +300,7 @@ class Game {
       roomCode: this.roomCode,
       roomAdminName: this.roomAdmin.getUsername(),
       capacity: this.capacity,
-      selectionTimeSecs: this.selectionTimeSecs,
+      selectionSecs: this.selectionSecs,
       privateRoom: this.privateRoom,
       numGames: this.numGames,
       missionTeamSizes: this.getMissionTeamSizes(),
@@ -353,10 +353,10 @@ class Game {
 
   letLeaderSelect(game, io, leaderId) { // 1
     game.setLeaderSelectedTeam(false);
-    game.setTimerSeconds(game.getSelectionTimeSecs());
+    game.setTimerSeconds(game.getSelectionSecs());
     for (let i = 0; i < game.getCapacity(); i++) {
       var playerId = game.getPlayers()[i].getId();
-      io.to(playerId).emit("team_select_happening", { isSelecting: playerId === leaderId, secs: game.getSelectionTimeSecs()});
+      io.to(playerId).emit("team_select_happening", { isSelecting: playerId === leaderId, secs: game.getSelectionSecs()});
     }
 
     game.startTimer(io);
