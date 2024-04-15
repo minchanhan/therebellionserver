@@ -7,7 +7,6 @@ const dotenv = require('dotenv');
 const Player = require("./model/Player.js");
 const Game = require("./model/Game.js");
 const Team = require("./Enums/Team.js");
-const VoteStatus = require("./Enums/VoteStatus.js");
 const MissionResult = require("./Enums/MissionResult.js");
 
 dotenv.config();
@@ -34,9 +33,9 @@ const server = http.createServer(app);
 const io = new Server(server, { // for work with socket.io
   cors: corsOptions,
   connectionStateRecovery: {
-    maxDisconnectionDuration: 3 * 60 * 1000, // 3 mins backup
+    maxDisconnectionDuration: 2 * 60 * 1000, // 2 mins backup
     skipMiddlewares: true,
-  }
+  },
 });
 
 var games = new Map();
@@ -95,11 +94,13 @@ const newPlayer = (id, username, isAdmin) => {
 };
 
 io.on("connection", (socket) => {
+  /* ----- CONNECTION ----- */
   if (socket.recovered) {
-    console.log("socket recovered..? so we good");
+    console.log(`Socket recovered with id: ${socket.id}`);
   } else {
-    console.log("socket did not recover, we gonna have to do something");
+    console.log(`Brand new connection with id: ${socket.id}`);
   }
+
   /* ===== EMITS ===== */
   const sendInitialInfo = (game, msg) => {
     game.updateChatMsg(io, msg);
@@ -130,13 +131,9 @@ io.on("connection", (socket) => {
   };
 
   /* ===== EVENT LISTENERS ===== */
-  /* ----- CONNECTION ----- */
-  console.log(`User Connected: ${socket.id}`);
-
   /* ----- DISCONNECTION ----- */
   socket.on("disconnect", (reason, details) => {
-    console.log(`User ${socket.id} disconnected because: ${reason}`);
-    console.log(`disconnect details: ${details}`);
+    console.log(`User ${socket.id} disconnected because: ${reason} and ${details}`);
 
     if (games.size === 0) return;
     if (socket.data.roomCode == null) return;
@@ -180,7 +177,7 @@ io.on("connection", (socket) => {
     const admin = newPlayer(socket.id, username, true);
     const roomCode = generateRoomCode();
     socket.join(roomCode);
-    console.log("created room: ", roomCode);
+    console.log("Created room: ", roomCode);
 
     const game = new Game(
       roomCode, // roomCode
@@ -274,7 +271,7 @@ io.on("connection", (socket) => {
     const msgLen = msgData.msg.length;
 
     if (msgData.msg === process.env.GAMES_SIZE_CMD) {
-      console.log("games size: ", games.size);
+      console.log("Games size: ", games.size);
       return;
     }
     if (msgData.msg === process.env.ALL_SOCKETS_CMD) {
