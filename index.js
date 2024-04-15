@@ -103,9 +103,9 @@ io.on("connection", (socket) => {
 
   /* ===== EMITS ===== */
   const sendInitialInfo = (game, msg) => {
+    game.sendGameSettingsChanges(io);
     game.updateChatMsg(io, msg);
     game.updateSeats(io);
-    game.sendGameSettingsChanges(io);
   };
 
   const sendNotInLobby = (username) => {

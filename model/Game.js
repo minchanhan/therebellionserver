@@ -295,6 +295,23 @@ class Game {
   };
 
   /* ===== EMITS TO CLIENT ===== */
+  sendGameSettingsChanges (io) {
+    io.to(this.roomCode).emit("game_settings_update", {
+      roomCode: this.roomCode,
+      roomAdminName: this.roomAdmin.getUsername(),
+      capacity: this.capacity,
+      selectionTimeSecs: this.selectionTimeSecs,
+      privateRoom: this.privateRoom,
+      numGames: this.numGames,
+      missionTeamSizes: this.getMissionTeamSizes(),
+    });
+  };
+
+  updateChatMsg(io, msgData) {
+    this.addMsgList(msgData);
+    io.to(this.roomCode).emit("msg_list_update", this.msgList);
+  };
+
   updateSeats(io) {
     // loop through players for info based on team
     var seats = [];
@@ -311,23 +328,6 @@ class Game {
     };
 
     io.to(this.roomCode).emit("seats_update", seats);
-  };
-
-  updateChatMsg(io, msgData) {
-    this.addMsgList(msgData);
-    io.to(this.roomCode).emit("msg_list_update", this.msgList);
-  };
-
-  sendGameSettingsChanges (io) {
-    io.to(this.roomCode).emit("game_settings_update", {
-      roomCode: this.roomCode,
-      roomAdminName: this.roomAdmin.getUsername(),
-      capacity: this.capacity,
-      selectionTimeSecs: this.selectionTimeSecs,
-      privateRoom: this.privateRoom,
-      numGames: this.numGames,
-      missionTeamSizes: this.getMissionTeamSizes(),
-    });
   };
 
   /* ===== GAME LOGIC FUNCTIONS ===== */
