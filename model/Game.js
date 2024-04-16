@@ -149,6 +149,13 @@ class Game {
       this.players[i].setOnMission(false);
     }
   }
+  getPlayerByUsername(username) {
+    for (let i = 0; i < this.players.length; i++) {
+      if (this.players[i].getUsername() === username) {
+        return this.players[i];
+      }
+    }
+  }
 
   getMsgList() {
     return this.msgList;
@@ -421,26 +428,24 @@ class Game {
     game.letLeaderSelect(game, io, leader.getId());
   };
 
-  changeRoomAdmin(game, newAdminUsername, manualTransfer=true, io, socket) {
-    if (manualTransfer) game.getPlayerByUsername(socket.data.username, game.getSeats().length).setIsAdmin(false);
-    const newAdmin = game.getPlayerByUsername(newAdminUsername, game.getSeats().length);
-    newAdmin.setIsAdmin(true);
-
-    for (let i = 0; i < game.getPlayers().length; i++) {
-      const plrId = game.getPlayers()[i].getId();
-      io.to(plrId).emit("room_admin_changed", {
-        isAdmin: plrId === newAdmin.getId(), 
-        adminName: newAdminUsername
-      });
+  updateRoomAdmin(io, newAdminUsername, manualTransfer=true, timestamp="") {
+    if (manualTransfer) {
+      io.to(this.roomAdmin.getId()).emit("is_admin_update", false);
+      this.roomAdmin.setIsAdmin(false);
     }
 
-    game.sendAdminCommands(newAdmin.getId(), io);
+    const newAdmin = this.getPlayerByUsername(newAdminUsername);
+    io.to(newAdmin.getId()).emit("is_admin_update", true);
+    newAdmin.setIsAdmin(true);
+    this.roomAdmin = newAdmin;
+
+    this.sendGameSettingsChanges(io);
     const adminTransferMsg = {
       msg: `${newAdminUsername} has been made admin`,
       sender: "PLAYER UPDATE",
-      time: ""
+      time: timestamp
     };
-    io.to(socket.data.roomCode).emit("msg_list_update", adminTransferMsg);
+    this.updateChatMsg(io, adminTransferMsg);
   };
 
   resetGameStates(game) {
@@ -527,7 +532,7 @@ class Game {
 
     if (disconnect) {
       game.removePlayer(disconnectedPlayerId); // remove one player
-      if (isAdmin) game.changeRoomAdmin(game, game.getPlayers()[0].getUsername(), false, io, socket);
+      if (isAdmin) game.updateRoomAdmin(io, game.getPlayers()[0].getUsername(), "timestamp here");
     }
 
     game.sendSeatingInfo(io);
