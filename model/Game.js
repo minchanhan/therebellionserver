@@ -291,7 +291,7 @@ class Game {
             for (let i = 0; i < this.getMissionTeamSizes()[this.mission - 1]; i++) {
               randomSelection.push(this.players[randomOrder[i]]); // array of Players
             }
-            this.handleVote(io, randomSelection, true);
+            this.handleVote(io, randomSelection);
           }
           clearInterval(interval);
         }
@@ -399,27 +399,16 @@ class Game {
     this.startTimer(io, this.selectionSecs);
   };
 
-  handleVote(game, io, selectedMembers, room, random=false) { // 2
-    const cap = game.getCapacity();
-    var seats = game.getSeats();
-
-    for (let i = 0; i < cap; i++) { // assigns onMission to seats
-      if (selectedMembers.includes(seats[i][0])) {
-        seats[i][3] = true;
-      } else {
-        seats[i][3] = false;
-      }
+  handleVote(io, selectedPlayers) { // 2
+    const players = this.players;
+    for (let i = 0; i < players.length; i++) { // assigns onMission to Players
+      players[i].setOnMission(selectedPlayers.includes(players[i].getUsername()));
     }
 
-    game.sendSeatingInfo(io);
-    io.in(room).emit("vote_happening", { selectedPlayers: selectedMembers });
-    
-    // send out msg
-    const speech = !random ? `Very well, soldiers, please approve or disapprove ${selectedMembers.join(', ')} carrying \
-    out mission ${game.mission}. ` : `Tsk tsk indecisive.. Allow me to randomly suggest members for this mission then. \
-    Please approve or disapprove ${selectedMembers.join(', ')} for mission ${game.mission}. `;
-    
-    game.gameMasterSpeech(game, io, speech);
+    io.in(this.roomCode).emit(
+      "vote_happening", 
+      { selectedPlayers: selectedPlayers }
+    );
   };
 
   handleMission(game, io, selectedPlayers) { // 3

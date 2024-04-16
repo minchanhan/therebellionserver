@@ -343,8 +343,7 @@ io.on("connection", (socket) => {
 
   socket.on("team_submitted_for_vote", (info) => { // 1
     const game = games.get(info.roomCode);
-    game.setLeaderSelectedTeam(true);
-    game.handleVote(game, io, info.selectedPlayers, info.roomCode);
+    game.handleVote(io, info.selectedPlayers);
   });
 
   socket.on("vote_is_in", (info) => { // 2
@@ -426,7 +425,8 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("request_teams", (username, roomCode) => {
+  socket.on("request_seats", (username, roomCode) => {
+    console.log("request seats");
     games.get(roomCode).updateSeats(io, true, username, socket);
   });
 });

@@ -53,7 +53,7 @@ class Player {
   getOnMission() {
     return this.onMission;
   };
-  setOnMission() {
+  setOnMission(onMission) {
     this.onMission = onMission;
   };
 }
