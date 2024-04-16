@@ -337,9 +337,8 @@ io.on("connection", (socket) => {
   });
 
   /* ----- GAMEPLAY ----- */
-  socket.on("admin_start_game", () => {
-    const game = games.get(socket.data.roomCode);
-    game.startGame(game, io);
+  socket.on("admin_start_game", (roomCode) => {
+    games.get(roomCode).startGame(io);
   });
 
   socket.on("team_submitted_for_vote", (info) => { // 1
@@ -425,6 +424,10 @@ io.on("connection", (socket) => {
       });
       game.changeLeader(game, io, missionResultSpeech); // change leader
     }
+  });
+
+  socket.on("request_teams", (username, roomCode) => {
+    games.get(roomCode).updateSeats(io, true, username, socket);
   });
 });
 
