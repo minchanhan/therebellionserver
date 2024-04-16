@@ -36,6 +36,7 @@ const io = new Server(server, { // for work with socket.io
     maxDisconnectionDuration: 2 * 60 * 1000, // 2 mins backup
     skipMiddlewares: true,
   },
+  transports: ["websocket"]
 });
 
 var games = new Map();
@@ -95,6 +96,8 @@ const newPlayer = (id, username, isAdmin) => {
 
 io.on("connection", (socket) => {
   /* ----- CONNECTION ----- */
+  io.emit('initial_ping');
+
   if (socket.recovered) {
     console.log(`Socket recovered with id: ${socket.id}`);
   } else {
@@ -169,6 +172,19 @@ io.on("connection", (socket) => {
   /* ----- IN ROOM CHECK ----- */
   socket.on("am_i_in_room", (room, areYouInRoom) => {
     areYouInRoom({ inRoom: socket.rooms.has(room) });
+  });
+
+  /* ----- REMOVE PLAYER ----- */
+  socket.on("remove_me", (username, roomCode, isAdmin) => {
+    console.log("remove me called", username, roomCode, isAdmin);
+    if (socket.rooms.has(roomCode)) {
+      const game = games.get(roomCode);
+      if (checkNameInGame(username, game.getPlayers().length, game)) {
+        game.removePlayer(username);
+        if (game.getHasStarted()) game.endGame(io, false, true, isAdmin);
+        socket.leave(roomCode);
+      }
+    }
   });
 
   /* ----- CREATE ROOM ----- */

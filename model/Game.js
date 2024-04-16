@@ -505,24 +505,21 @@ class Game {
   };
 
   endGame(
-    game, 
     io, 
     win=true, 
     disconnect=false, 
-    disconnectedPlayerId="", 
     isAdmin=false, 
-    socket=null
   ) {
-    game.setHasStarted(false);
-    const roomCode = game.getRoomCode();
+    this.setHasStarted(false);
+    const roomCode = this.roomCode;
     const message = win ? "The Rebellion Wins" : 
                     !disconnect ? "The Spies Win" : 
                     disconnect ? "Game Aborted Due to User Disconnect >:(" :
                     "Game Over";
 
-    if (!disconnect) game.addGameRound();
+    if (!disconnect) this.addGameRound();
     
-    game.gameMasterSpeech(game, io, message);
+    this.gameMasterSpeech(this, io, message);
 
     io.to(roomCode).emit("set_game_end", { 
       playerRevealArr: game.getPlayerRevealArr(), 
@@ -531,11 +528,10 @@ class Game {
     });
 
     if (disconnect) {
-      game.removePlayer(disconnectedPlayerId); // remove one player
-      if (isAdmin) game.updateRoomAdmin(io, game.getPlayers()[0].getUsername(), "timestamp here");
+      if (isAdmin) this.updateRoomAdmin(io, this.getPlayers()[0].getUsername(), "timestamp here");
     }
 
-    game.sendSeatingInfo(io);
+    this.sendSeatingInfo(io);
   };
 }
 
