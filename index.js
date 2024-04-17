@@ -114,7 +114,7 @@ io.on("connection", (socket) => {
   const sendNotInLobby = (game, username) => {
     const cmdErrorMsg = {
       msg: `Admin tried kicking ${username} but they're not in lobby, try removing extra spaces in this command or use CAPS?`,
-      sender: "ADMIN INFO",
+      sender: "GAME MASTER",
       time: getTime()
     };
     game.updateChatMsg(io, cmdErrorMsg);
@@ -148,7 +148,7 @@ io.on("connection", (socket) => {
 
     const byeMsg = {
       msg: `${game.getPlayerById(socket.id, game.getPlayers().length)?.getUsername()} has disconnected`,
-      sender: "PLAYER UPDATE",
+      sender: "GAME MASTER",
       time: getTime()
     };
     io.to(roomCode).emit("msg_list_update", byeMsg);
@@ -209,10 +209,7 @@ io.on("connection", (socket) => {
       [admin], // players
       [], // msgList
       1, // curMission
-      [], // curSelectedPlayers
-      [[],[]], // curVoteTally,
       0, // curMissionVoteDisapproves
-      0, // curMissionFails
       [
         MissionResult.None, 
         MissionResult.None, 
@@ -221,6 +218,8 @@ io.on("connection", (socket) => {
         MissionResult.None
       ], // missionResultTrack
       [[],[],[],[],[]], // missionHistory
+      [[],[]], // curVoteTally,
+      [0,0], // curMissionTally
     );
     games.set(roomCode, game);
 
@@ -285,7 +284,6 @@ io.on("connection", (socket) => {
 
   /* ----- MESSAGES ----- */
   socket.on("send_msg", (msgData, roomCode, username, isAdmin) => {
-    console.log(msgData.msg);
     const game = games.get(roomCode);
     const msgLen = msgData.msg.length;
 
@@ -310,7 +308,7 @@ io.on("connection", (socket) => {
       game.updateSeats(io);
       const kickMsg = {
         msg: `${kickedUsername} was kicked by admin`,
-        sender: "PLAYER UPDATE",
+        sender: "GAME MASTER",
         time: getTime()
       };
       game.updateChatMsg(io, kickMsg);
@@ -341,92 +339,23 @@ io.on("connection", (socket) => {
     games.get(roomCode).startGame(io);
   });
 
-  socket.on("team_submitted_for_vote", (info) => { // 1
+  socket.on("team_submitted_for_vote", (info) => {
     const game = games.get(info.roomCode);
     game.handleVote(io, info.selectedPlayers);
   });
 
-  socket.on("vote_is_in", (info) => { // 2
+  socket.on("vote_is_in", (info) => {
     const game = games.get(info.roomCode);
-    const voter = info.username;
-    game.setCurVoteTally(info.approve, voter);
-
-    const approvals = game.getCurVoteTally()[0].length;
-    const disapprovals = game.getCurVoteTally()[1].length;
-
-    if ((approvals + disapprovals) === game.getCapacity()) {
-      const voteApproved = (approvals - disapprovals) > 0;
-
-      // Send voting results to chats
-      const voteResultMsg = `${approvals > 0 ? game.getCurVoteTally()[0].join(', ') : "Nobody"} approved mission.\n
-
-      ${disapprovals > 0 ? game.getCurVoteTally()[1].join(', ') : "Nobody"} disapproved mission.`;
-
-      const msgData = {
-        msg: voteResultMsg,
-        sender: "PUBLIC TALLY",
-        time: `Mission ${game.getMission()}, Vote ${game.getCurMissionVoteDisapproves() + 1}`
-      };
-
-      io.to(info.roomCode).emit("msg_list_update", msgData); // send public tally to CHATBOX THIS TIME
-    
-      if (voteApproved) {
-        // commence mission
-        game.handleMission(game, io, info.selectedPlayers);
-      } else {
-        game.setCurMissionVoteDisapproves(game.getCurMissionVoteDisapproves() + 1);
-        if (game.getCurMissionVoteDisapproves() > 4) {
-          game.endGame(game, io, false);
-          return;
-        }
-        const revoteSpeech = `I see, you do not trust ${info.selectedPlayers.slice(0, -1).join(', ')} and ${info.selectedPlayers.slice(-1)}
-        to go on this mission. `;
-        game.changeLeader(game, io, revoteSpeech);
-      }
-      return;
-    }
+    game.handleVoteEntries(io, info.username, info.approve); 
+    // calls handleMissionStart or handleTeamSelect or handleGameEnd
   });
 
-  socket.on("mission_result_is_in", (info) => { // 3
+  socket.on("mission_entry_is_in", (info) => {
     const game = games.get(info.roomCode);
-    game.setMissionResult(info.pass);
-    const passes = game.getMissionResult()[0];
-    const fails = game.getMissionResult()[1];
-    const missionTeamSize = game.getMissionTeamSizes()[game.getMission() - 1];
-
-    if (passes + fails === missionTeamSize) { // CHANGE TO NUMBER OF PEOPLE ON MISSIONS
-      // announce mission results
-      const cap = game.getCapacity();
-      const mission = game.getMission();
-      const missionPassed = cap >= 7 && mission === 4 ? fails < 2 : fails === 0;
-      game.setMissionResultTrack(game.getMission(), missionPassed);
-
-      game.addMission(); // increment mission
-      missionPassed ? game.addMissionPasses() : game.addMissionFails();
-
-      if (game.getMissionPasses() === 3) {
-        game.endGame(game, io, true);
-        return;
-      } else if (game.getMissionFails() === 3) {
-        game.endGame(game, io, false);
-        return;
-      }
-
-      // If still going, then keep going with mission      
-      const missionResultSpeech = missionPassed ? `Well done soliders. The mission has passed. We have \
-      ${3 - game.getMissionPasses()} left before we complete the overthrowing. ` : `This isn't good... we failed the mission... \
-      ${3 - game.getMissionFails()} failed missions remain before plans of overthrowing the power is ruined. `;
-
-      io.in(info.roomCode).emit("mission_completed", { 
-        mission: game.getMission(), 
-        missionResultTrack: game.getMissionResultTrack() 
-      });
-      game.changeLeader(game, io, missionResultSpeech); // change leader
-    }
+    game.handleMissionEntries(io, info.pass);
   });
 
   socket.on("request_seats", (username, roomCode) => {
-    console.log("request seats");
     games.get(roomCode).updateSeats(io, true, username, socket);
   });
 });

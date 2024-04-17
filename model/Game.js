@@ -16,12 +16,11 @@ class Game {
     players,
     msgList,
     curMission,
-    curSelectedPlayers,
-    curVoteTally,
     curMissionVoteDisapproves,
-    curMissionFails,
     missionResultTrack,
     missionHistory,
+    curVoteTally,
+    curMissionTally,
   ) {
     // game settings
     this.roomCode = roomCode; // string
@@ -39,19 +38,15 @@ class Game {
 
     // game screen
     this.players = players; // arr[Player]
-
     this.msgList = msgList; // arr[msg]
     
-    this.curMission = curMission; // int, the mission game is on *** (gameScreen)
-    this.curSelectedPlayers = curSelectedPlayers; // arr[Player]
-
-    this.curVoteTally = curVoteTally; // [arr[approve Player], arr[disapprove Player]] (per vote)
+    this.curMission = curMission; // int, the mission game is on (gameScreen)
     this.curMissionVoteDisapproves = curMissionVoteDisapproves; // int (gameScreen)
-
-    this.curMissionFails = curMissionFails; // int (per mission)
     this.missionResultTrack = missionResultTrack; // arr[MissionResult (None, Pass, Fail)] (gameScreen)
-    
-    this.missionHistory = missionHistory; // arr[curSelectedPlayers] (gameScreen)
+    this.missionHistory = missionHistory; // arr[selectedPlayers] (gameScreen)
+
+    this.curVoteTally = curVoteTally; // [arr[approve Player], arr[disapprove Player]] (used only in server)
+    this.curMissionTally = curMissionTally; // int (used only in server)
   };
 
   /* ===== PROPERTIES ===== */
@@ -142,17 +137,10 @@ class Game {
       }
     }
   }
-  resetPlayers() {
-    for (let i = 0; i < this.players; i++) {
-      this.players[i].setTeam(Team.Unknown);
-      this.players[i].setIsLeader(false);
-      this.players[i].setOnMission(false);
-    }
-  }
   getPlayerByUsername(username) {
-    for (let i = 0; i < this.players.length; i++) {
-      if (this.players[i].getUsername() === username) {
-        return this.players[i];
+    for (const player of this.players) {
+      if (player.getUsername() === username) {
+        return player;
       }
     }
   }
@@ -174,23 +162,6 @@ class Game {
     this.curMission = curMission;
   }
 
-  getCurSelectedPlayers() {
-    return this.curSelectedPlayers;
-  };
-  setCurSelectedPlayers(curSelectedPlayers) {
-    this.curSelectedPlayers = curSelectedPlayers;
-  };
-
-  getCurVoteTally() {
-    return this.curVoteTally;
-  };
-  addCurVoteTally(approve, voter) {
-    approve ? this.curVoteTally[0].push(voter) : this.curVoteTally[1].push(voter);
-  };
-  clearCurVoteTally() {
-    this.curVoteTally = [[], []];
-  };
-
   getCurMissionVoteDisapproves() {
     return this.curMissionVoteDisapproves;
   };
@@ -198,38 +169,41 @@ class Game {
     this.curMissionVoteDisapproves = newVal;
   };
 
-  getCurMissionFails() {
-    return this.curMissionFails;
-  };
-  setCurMissionFails(curMissionFails) {
-    this.curMissionFails = curMissionFails;
-  }
-
   getMissionResultTrack() {
     return this.missionResultTrack;
   };
   setMissionResultTrack(mission, missionPassed) {
     this.missionResultTrack[mission - 1] = missionPassed ? MissionResult.Pass : MissionResult.Fail;
   };
-  clearMissionResultTrack() {
-    this.missionResultTrack = [
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None
-    ];
-  };
 
   getMissionHistory() {
     return this.missionHistory;
   };
-  setMissionHistory(missionHistory, mission) {
-    this.missionHistory[mission] = missionHistory;
+  setMissionHistory(mission, missionHistory) {
+    this.missionHistory[mission - 1] = missionHistory;
   };
-  clearMissionHistory() {
-    this.missionHistory = [[],[],[],[],[]];
-  }
+
+  getCurVoteTally() {
+    return this.curVoteTally;
+  };
+  addCurVoteTally(voter, approve) {
+    if (approve) {
+      this.curVoteTally[0].push(voter)
+    } else {
+      this.curVoteTally[1].push(voter);
+    }
+  };
+
+  getCurMissionTally() {
+    return this.curMissionTally;
+  };
+  addCurMissionTally(pass) {
+    if (pass) {
+      this.curMissionTally[0] += 1
+    } else {
+      this.curMissionTally[1] += 1;
+    }
+  };
 
   /* ===== OTHER GETTERS & SETTERS ===== */
   getNumSpies() {
@@ -247,16 +221,44 @@ class Game {
     return [missionTeamSize1, missionTeamSize2, missionTeamSize3, missionTeamSize4, missionTeamSize5];
   };
 
-  setLeader(leader, leaderIndex, isLeader) { // seat change
-    leader.setIsLeader(isLeader);
-    for (let i = 0; i < this.capacity; i++) {
-      if (i === leaderIndex) {
-        this.seats[i][2] = true;
-      } else {
-        this.seats[i][2] = false;
+  getCurSelectedPlayers() {
+    var curSelectedPlayers = [];
+    for (const player of this.players) {
+      if (player.getOnMission()) {
+        curSelectedPlayers.push(player.getUsername());
       }
     }
-  }
+    console.log(curSelectedPlayers);
+    return curSelectedPlayers;
+  };
+
+  getMissionPasses() {
+    var passes = 0;
+    for (const result of this.missionResultTrack) {
+      if (result === MissionResult.Pass) {
+        passes += 1;
+      }
+    }
+    return passes;
+  };
+  getMissionFails() {
+    var fails = 0;
+    for (const result of this.missionResultTrack) {
+      if (result === MissionResult.Fail) {
+        fails += 1;
+      }
+    }
+    return fails;
+  };
+
+  getPlayerRevealArr() {
+    var reveal = [];
+    for (const player of this.players) {
+      const msg = player.getTeam() === Team.Bad ? "a Spy" : "on The Rebellion";
+      reveal.push(`${player.getUsername()} was ${msg}`);
+    }
+    return reveal;
+  };
   
   /* ===== HELPER FUNCTIONS ===== */
   shuffle(array) {
@@ -274,6 +276,26 @@ class Game {
     return arr;
   };
 
+  updateRoomAdmin(io, newAdminUsername, manualTransfer=true, timestamp="") {
+    if (manualTransfer) {
+      io.to(this.roomAdmin.getId()).emit("is_admin_update", false);
+      this.roomAdmin.setIsAdmin(false);
+    }
+
+    const newAdmin = this.getPlayerByUsername(newAdminUsername);
+    io.to(newAdmin.getId()).emit("is_admin_update", true);
+    newAdmin.setIsAdmin(true);
+    this.roomAdmin = newAdmin;
+
+    this.sendGameSettingsChanges(io);
+    const adminTransferMsg = {
+      msg: `${newAdminUsername} has been made admin`,
+      sender: "GAME MASTER",
+      time: timestamp
+    };
+    this.updateChatMsg(io, adminTransferMsg);
+  };
+
   startTimer(io, timerSeconds) {
     let interval = setInterval(() => {
       if (!this.teamSelectHappening) {
@@ -287,15 +309,12 @@ class Game {
           var randomOrder = [...Array(this.capacity).keys()];
           this.shuffle(randomOrder);
   
-          if (this.hasStarted) {
-            for (let i = 0; i < this.getMissionTeamSizes()[this.mission - 1]; i++) {
-              randomSelection.push(this.players[randomOrder[i]]); // array of Players
-            }
-            this.handleVote(io, randomSelection);
+          for (let i = 0; i < this.getMissionTeamSizes()[this.mission - 1]; i++) {
+            randomSelection.push(this.players[randomOrder[i]]); // array of Players
           }
+          this.handleVote(io, randomSelection);
           clearInterval(interval);
         }
-        console.log(timerSeconds);
       } 
     }, 1000);
   };
@@ -308,29 +327,25 @@ class Game {
     this.shuffle(teamArr);
     this.shuffle(this.players);
 
-    for (let i = 0; i < this.capacity; i++) {
-      const player = this.players[i];
-      player.setTeam(teamArr[i]);
+    for (let i = 0; i < this.players.length; i++) {
+      this.players[i].setTeam(teamArr[i]);
     }
   };
 
-  changeLeader(game, io, resultSpeech) {
-    // clean
-    game.clearMissionResult();
-    game.clearCurVoteTally();
-    game.changeLeaderIndex(); // changes leader index
-    game.clearOnMission(); // clears everyone's onMission in this.seats
-
-    var leader = game.getPlayers()[game.getLeaderIndex()];
-    game.setLeader(leader, game.getLeaderIndex(), true); // also changes everyone's isLeader in this.seats
-    game.sendSeatingInfo(io); // new seating info
-    io.to(game.getRoomCode()).emit("vote_track", game.getCurMissionVoteDisapproves());
-
-    const newLeaderSpeech = `We proceed. The new leader is ${leader.getUsername()}. \
-    ${leader.getUsername()}, please choose ${game.getMissionTeamSizes()[game.getMission() - 1]} members for mission ${game.getMission()}. `;
-
-    game.gameMasterSpeech(game, io, resultSpeech + newLeaderSpeech);
-    game.handleTeamSelect(game, io, leader.getId());
+  changeAndGetNewLeader() {
+    for (let i = 0; i < this.players.length; i++) {
+      const player = this.players[i];
+      if (player.getIsLeader()) {
+        player.setIsLeader(false);
+        if ((i+1) === this.players.length) {
+          this.players[0].setIsLeader(true);
+          return this.players[0];
+        } else {
+          this.players[i+1].setIsLeader(true);
+          return this.players[i+1];
+        }
+      }
+    }
   };
 
   /* ===== EMITS TO CLIENT ===== */
@@ -381,13 +396,21 @@ class Game {
   };
 
   /* ===== GAME LOGIC FUNCTIONS ===== */
-  handleTeamSelect(io, leaderIndex) { // 1
+  handleTeamSelect(io, leaderUsername) {
     this.teamSelectHappening = true;
-    for (let i = 0; i < this.capacity; i++) {
-      io.to(this.players[i].getId()).emit(
+    this.voteHappening = false;
+    this.missionHappening = false;
+    this.curVoteTally = [[],[]];
+    this.curMissionTally = [0,0];
+    for (const player of this.players) { // reset on mission
+      player.setOnMission(false);
+    }
+
+    for (const player of this.players) {
+      io.to(player.getId()).emit(
         "team_select_happening",
         {
-          isLeader: i === leaderIndex,
+          isLeader: player.getUsername() === leaderUsername,
           curMission: this.curMission,
           curMissionVoteDisapproves: this.curMissionVoteDisapproves,
           missionResultTrack: this.missionResultTrack,
@@ -399,66 +422,106 @@ class Game {
     this.startTimer(io, this.selectionSecs);
   };
 
-  handleVote(io, selectedPlayers) { // 2
-    const players = this.players;
-    for (let i = 0; i < players.length; i++) { // assigns onMission to Players
-      players[i].setOnMission(selectedPlayers.includes(players[i].getUsername()));
+  handleVote(io, selectedPlayers) {
+    this.teamSelectHappening = false;
+    this.voteHappening = true;
+
+    for (const player of this.players) { // assigns onMission to Players
+      player.setOnMission(selectedPlayers.includes(player.getUsername()));
     }
 
-    io.in(this.roomCode).emit(
-      "vote_happening", 
-      { selectedPlayers: selectedPlayers }
-    );
+    io.to(this.roomCode).emit("vote_happening", {
+      selectedPlayers: selectedPlayers
+    });
   };
 
-  handleMission(game, io, selectedPlayers) { // 3
-    const cap = game.getCapacity();
-    var seats = game.getSeats();
+  handleVoteEntries(io, voter, approve) {
+    this.addCurVoteTally(voter, approve);
 
-    for (let i = 0; i < cap; i++) { // send pass/fail action to players onMissionTeam
-      const onMissionTeam = seats[i][3];
-      var playerId = game.getPlayers()[i].getId();
-      io.to(playerId).emit("mission_happening", onMissionTeam);
+    const approvals = this.curVoteTally[0].length;
+    const disapprovals = this.curVoteTally[1].length;
+
+    if ((approvals + disapprovals) === this.capacity) {
+      const voteApproved = (approvals - disapprovals) > 0;
+
+      // Send voting results to chats
+      const voteResultMsg = `${approvals > 0 ? this.curVoteTally[0].join(', ') : "Nobody"} approved mission.
+
+      ${disapprovals > 0 ? this.curVoteTally[1].join(', ') : "Nobody"} disapproved mission.`;
+      const voteResults = {
+        msg: voteResultMsg,
+        sender: "GAME MASTER",
+        time: `Mission ${this.curMission}, Vote ${this.curMissionVoteDisapproves + 1}`
+      };
+      this.updateChatMsg(io, voteResults);
+    
+      if (voteApproved) {
+        this.handleMission(io);
+      } else {
+        this.curMissionVoteDisapproves += 1;
+
+        if (this.curMissionVoteDisapproves > 4) {
+          this.endGame(io, false);
+          return;
+        }
+
+        this.handleTeamSelect(io, this.changeAndGetNewLeader().getUsername());
+      }
+      return;
+    }
+  }
+
+  handleMission(io) {
+    this.curMissionVoteDisapproves = 0;
+    this.voteHappening = false;
+    this.missionHappening = true;
+
+    // send pass/fail action to players onMissionTeam
+    for (const player of this.players) { 
+      io.to(player.getId()).emit("mission_happening", player.getOnMission());
     }
 
-    game.setCurMissionVoteDisapproves(0); // Reset vote count
-    const startMissionSpeech = `The vote has been approved, we begin our mission.
+    const selectedPlayers = this.getCurSelectedPlayers();
+    const startMissionSpeech = `The mission team has been approved,
     ${selectedPlayers.slice(0, -1).join(', ')} and ${selectedPlayers.slice(-1)} please
-    make a decision, PASS or FAIL. (Rebellion members must pass, spies can choose either). `;
-    game.gameMasterSpeech(game, io, startMissionSpeech);
-  };
-
-  updateRoomAdmin(io, newAdminUsername, manualTransfer=true, timestamp="") {
-    if (manualTransfer) {
-      io.to(this.roomAdmin.getId()).emit("is_admin_update", false);
-      this.roomAdmin.setIsAdmin(false);
-    }
-
-    const newAdmin = this.getPlayerByUsername(newAdminUsername);
-    io.to(newAdmin.getId()).emit("is_admin_update", true);
-    newAdmin.setIsAdmin(true);
-    this.roomAdmin = newAdmin;
-
-    this.sendGameSettingsChanges(io);
-    const adminTransferMsg = {
-      msg: `${newAdminUsername} has been made admin`,
-      sender: "PLAYER UPDATE",
-      time: timestamp
+    choose PASS or FAIL. (Rebellion members must pass, spies can choose either). `;
+    const missionStartMsg = {
+      msg: startMissionSpeech,
+      sender: "GAME MASTER",
+      time: `Mission ${this.curMission}, Vote ${this.curMissionVoteDisapproves + 1}`
     };
-    this.updateChatMsg(io, adminTransferMsg);
+    this.updateChatMsg(io, missionStartMsg);
   };
 
-  resetGameStates(game) {
-    game.resetMission();
-    game.clearCurVoteTally();
-    game.clearMissionResult();
-    game.clearOnMission(); // clears everyone's onMission in this.seats
-    // isLeader is properly set start of game
-    game.clearMissionPasses();
-    game.clearMissionFails();
-    // curMissionVoteDisapproves is set to 0 at start of vote
-    game.clearMissionResultTrack();
-  };
+  handleMissionEntries(io, pass) {
+    this.addCurMissionTally(pass)
+
+    const passes = this.curMissionTally[0];
+    const fails = this.curMissionTally[1];
+    const missionTeamSize = this.getMissionTeamSizes()[(this.curMission - 1)];
+
+    console.log("passes: ", passes);
+    console.log("fails: ", fails);
+    console.log(missionTeamSize);
+
+    if (passes + fails === missionTeamSize) {
+      const missionResult = this.capacity >= 7 && this.curMission === 4 ? fails < 2 : fails === 0;
+      this.setMissionResultTrack(this.curMission, missionResult);
+      this.setMissionHistory(this.curMission, this.getCurSelectedPlayers());
+
+      if (this.getMissionPasses() === 3) {
+        this.endGame(io, true);
+        return;
+      } else if (this.getMissionFails() === 3) {
+        this.endGame(io, false);
+        return;
+      }
+
+      // game proceeds otherwise
+      this.curMission += 1;
+      this.handleTeamSelect(io, this.changeAndGetNewLeader().getUsername());
+    }
+  }
 
   startGame(io) {
     // start game
@@ -467,40 +530,47 @@ class Game {
     this.randomizeTeams();
     // randomize leader
     const leaderIndex = Math.floor(Math.random() * this.capacity); // range 0 to (cap - 1)
-    this.players[leaderIndex].setIsLeader(true);
+    const leader = this.players[leaderIndex];
+    leader.setIsLeader(true);
 
     // start missions
-    this.handleTeamSelect(io, leaderIndex);
+    this.handleTeamSelect(io, leader.getUsername());
   };
 
   endGame(
     io, 
     win=true, 
-    disconnect=false, 
-    isAdmin=false, 
+    disconnect=false,
   ) {
-    this.setHasStarted(false);
-    const roomCode = this.roomCode;
     const message = win ? "The Rebellion Wins" : 
                     !disconnect ? "The Spies Win" : 
                     disconnect ? "Game Aborted Due to User Disconnect >:(" :
                     "Game Over";
 
-    if (!disconnect) this.addGameRound();
     
-    this.gameMasterSpeech(this, io, message);
 
-    io.to(roomCode).emit("set_game_end", { 
-      playerRevealArr: game.getPlayerRevealArr(), 
-      endMsg: "Game Over: " + message, 
-      kicked: false 
-    });
-
-    if (disconnect) {
-      if (isAdmin) this.updateRoomAdmin(io, this.getPlayers()[0].getUsername(), "timestamp here");
+    this.setHasStarted(false);
+    this.curMission = 1;
+    this.curMissionVoteDisapproves = 0;
+    this.missionResultTrack = [
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None
+    ];
+    this.missionHistory = [[],[],[],[],[]];
+    for (const player of this.players) {
+      player.setTeam(Team.Unknown);
+      player.setIsLeader(false);
+      player.setOnMission(false);
     }
-
-    this.sendSeatingInfo(io);
+    this.updateSeats(io);
+    
+    io.to(this.roomCode).emit("set_game_end", { 
+      playerRevealArr: this.getPlayerRevealArr(), 
+      endMsg: "Game Over: " + message, 
+    });
   };
 }
 
