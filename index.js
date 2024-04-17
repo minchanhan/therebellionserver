@@ -170,9 +170,9 @@ io.on("connection", (socket) => {
   });
 
   /* ----- IN ROOM CHECK ----- */
-  socket.on("am_i_in_room", (room, areYouInRoom) => {
+  /* socket.on("am_i_in_room", (room, areYouInRoom) => {
     areYouInRoom({ inRoom: socket.rooms.has(room) });
-  });
+  }); */
 
   /* ----- REMOVE PLAYER ----- */
   socket.on("remove_me", (username, roomCode, isAdmin) => {

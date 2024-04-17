@@ -305,14 +305,7 @@ class Game {
         if (timerSeconds > 0) {
           timerSeconds = timerSeconds - 1;
         } else {
-          var randomSelection = [];
-          var randomOrder = [...Array(this.capacity).keys()];
-          this.shuffle(randomOrder);
-  
-          for (let i = 0; i < this.getMissionTeamSizes()[this.mission - 1]; i++) {
-            randomSelection.push(this.players[randomOrder[i]]); // array of Players
-          }
-          this.handleVote(io, randomSelection);
+          this.handleTeamSelect(io, this.changeAndGetNewLeader().getUsername());
           clearInterval(interval);
         }
       } 
