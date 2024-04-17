@@ -388,6 +388,15 @@ class Game {
     }
   };
 
+  sendGameMasterMsg(io, msg) {
+    const msgData = {
+      msg: msg,
+      sender: "GAME MASTER",
+      time: `Game ${this.numGames}, Mission ${this.curMission}, Team ${this.curMissionVoteDisapproves + 1}`
+    };
+    this.updateChatMsg(io, msgData);
+  };
+
   /* ===== GAME LOGIC FUNCTIONS ===== */
   handleTeamSelect(io, leaderUsername) {
     this.teamSelectHappening = true;
@@ -404,6 +413,7 @@ class Game {
         "team_select_happening",
         {
           isLeader: player.getUsername() === leaderUsername,
+          leaderUsername: leaderUsername,
           curMission: this.curMission,
           curMissionVoteDisapproves: this.curMissionVoteDisapproves,
           missionResultTrack: this.missionResultTrack,
@@ -412,6 +422,7 @@ class Game {
       );
     }
 
+    this.sendGameMasterMsg(io, `${leaderUsername} is selecting team for mission`);
     this.startTimer(io, this.selectionSecs);
   };
 
@@ -422,6 +433,8 @@ class Game {
     for (const player of this.players) { // assigns onMission to Players
       player.setOnMission(selectedPlayers.includes(player.getUsername()));
     }
+
+    this.sendGameMasterMsg(io, `Approve or disapprove ${selectedPlayers.join(", ")} for this mission`);
 
     io.to(this.roomCode).emit("vote_happening", {
       selectedPlayers: selectedPlayers
@@ -437,16 +450,9 @@ class Game {
     if ((approvals + disapprovals) === this.capacity) {
       const voteApproved = (approvals - disapprovals) > 0;
 
-      // Send voting results to chats
-      const voteResultMsg = `${approvals > 0 ? this.curVoteTally[0].join(', ') : "Nobody"} approved mission.
-
-      ${disapprovals > 0 ? this.curVoteTally[1].join(', ') : "Nobody"} disapproved mission.`;
-      const voteResults = {
-        msg: voteResultMsg,
-        sender: "GAME MASTER",
-        time: `Mission ${this.curMission}, Vote ${this.curMissionVoteDisapproves + 1}`
-      };
-      this.updateChatMsg(io, voteResults);
+      const voteResultMsg = `${approvals > 0 ? this.curVoteTally[0].join(', ') : "Nobody"} approved the team.
+      ${disapprovals > 0 ? this.curVoteTally[1].join(', ') : "Nobody"} disapproved the team.`;
+      this.sendGameMasterMsg(io, voteResultMsg);
     
       if (voteApproved) {
         this.handleMission(io);
@@ -477,13 +483,8 @@ class Game {
     const selectedPlayers = this.getCurSelectedPlayers();
     const startMissionSpeech = `The mission team has been approved,
     ${selectedPlayers.slice(0, -1).join(', ')} and ${selectedPlayers.slice(-1)} please
-    choose PASS or FAIL. (Rebellion members must pass, spies can choose either). `;
-    const missionStartMsg = {
-      msg: startMissionSpeech,
-      sender: "GAME MASTER",
-      time: `Mission ${this.curMission}, Vote ${this.curMissionVoteDisapproves + 1}`
-    };
-    this.updateChatMsg(io, missionStartMsg);
+    choose PASS or FAIL. (Rebellion members must pass, spies can choose either).`;
+    this.sendGameMasterMsg(io, startMissionSpeech);
   };
 
   handleMissionEntries(io, pass) {
@@ -543,6 +544,7 @@ class Game {
     
 
     this.setHasStarted(false);
+    this.numGames += 1;
     this.curMission = 1;
     this.curMissionVoteDisapproves = 0;
     this.missionResultTrack = [

@@ -111,15 +111,6 @@ io.on("connection", (socket) => {
     game.updateSeats(io);
   };
 
-  const sendNotInLobby = (game, username) => {
-    const cmdErrorMsg = {
-      msg: `Admin tried kicking ${username} but they're not in lobby, try removing extra spaces in this command or use CAPS?`,
-      sender: "GAME MASTER",
-      time: getTime()
-    };
-    game.updateChatMsg(io, cmdErrorMsg);
-  };
-
   const handlePlayerJoin = (socket, username, roomCode, game, sendRoomValidity) => {
     const uniqueName = setAndReturnUniqueName(game, username);
     const player = newPlayer(socket.id, uniqueName, false);
@@ -127,7 +118,7 @@ io.on("connection", (socket) => {
     game.addPlayer(player);
 
     const joinMsg = {
-      msg: `${uniqueName} has joined game`, sender: "PLAYER UPDATE", time: getTime()
+      msg: `${uniqueName} has joined game`, sender: "GAME MASTER", time: getTime()
     };
     sendInitialInfo(game, joinMsg);
     sendRoomValidity({ roomExists: true, roomCode: roomCode, uniqueName: uniqueName });
@@ -224,7 +215,7 @@ io.on("connection", (socket) => {
     games.set(roomCode, game);
 
     const createMsg = {
-      msg: `${username} has created game`, sender: "PLAYER UPDATE", time: getTime()
+      msg: `${username} has created game`, sender: "GAME MASTER", time: getTime()
     };
     sendInitialInfo(game, createMsg);
     navigateTo({ room: roomCode });
@@ -300,7 +291,12 @@ io.on("connection", (socket) => {
       const kickedUsername = msgData.msg.slice(6, msgLen).toUpperCase();
       if (kickedUsername === username) return;
       if (!checkNameInGame(kickedUsername, game.getPlayers().length, game)) {
-        sendNotInLobby(game, kickedUsername);
+        const cmdErrorMsg = {
+          msg: `Admin tried kicking ${kickedUsername} but they're not in lobby, try removing extra spaces in this command?`,
+          sender: "GAME MASTER",
+          time: getTime()
+        };
+        game.updateChatMsg(io, cmdErrorMsg);
         return;
       }
       const removedPlayerId = game.getPlayerByUsername(kickedUsername).getId();
@@ -322,7 +318,12 @@ io.on("connection", (socket) => {
       if (newAdminUsername === username) return;
 
       if (!checkNameInGame(newAdminUsername, game.getPlayers().length, game)) {
-        sendNotInLobby(game, newAdminUsername);
+        const cmdErrorMsg = {
+          msg: `Can't transfer admin role, ${newAdminUsername} is not in lobby, try removing extra spaces in this command?`,
+          sender: "GAME MASTER",
+          time: getTime()
+        };
+        game.updateChatMsg(io, cmdErrorMsg);
         return;
       }
 
