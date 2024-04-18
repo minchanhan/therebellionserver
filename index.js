@@ -29,12 +29,12 @@ app.get('/', (req, res) => {
 });
 
 const server = http.createServer(app);
-const backupTime = 15 * 1000;
+const backupTime = 10 * 1000;
 
 const io = new Server(server, { // for work with socket.io
   cors: corsOptions,
   connectionStateRecovery: {
-    maxDisconnectionDuration: backupTime - 500, // 15 secs backup, but disable it a bit quicker
+    maxDisconnectionDuration: backupTime - 500, // 15 secs backup, but disable bit quicker in case
     skipMiddlewares: true,
   },
   transports: ["websocket"]
