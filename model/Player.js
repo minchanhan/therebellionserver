@@ -13,6 +13,7 @@ class Player {
     this.team = team; // enum: Good | Bad | Unknown
     this.isLeader = isLeader; // bool
     this.onMission = onMission; // enum: none | yes | no
+    this.isReconnecting = false; // bool
   }
 
   getId() {
@@ -55,6 +56,13 @@ class Player {
   };
   setOnMission(onMission) {
     this.onMission = onMission;
+  };
+  
+  getIsReconnecting() {
+    return this.isReconnecting;
+  };
+  setIsReconnecting(isReconnecting) {
+    this.isReconnecting = isReconnecting;
   };
 }
 

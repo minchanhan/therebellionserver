@@ -29,11 +29,12 @@ app.get('/', (req, res) => {
 });
 
 const server = http.createServer(app);
+const backupTime = 15 * 1000;
 
 const io = new Server(server, { // for work with socket.io
   cors: corsOptions,
   connectionStateRecovery: {
-    maxDisconnectionDuration: 2 * 60 * 1000, // 2 mins backup
+    maxDisconnectionDuration: backupTime - 500, // 15 secs backup, but disable it a bit quicker
     skipMiddlewares: true,
   },
   transports: ["websocket"]
@@ -95,6 +96,15 @@ const newPlayer = (id, username, isAdmin) => {
   return player;
 };
 
+const checkIfPlayerReconnected = (player, callback) => {
+  console.log("starting timer for reconnect");
+  let interval = setInterval(() => {
+    console.log("times up, still reconnecting?");
+    clearInterval(interval);
+    callback(player.getIsReconnecting());
+  }, backupTime);
+};
+
 io.on("connection", (socket) => {
   /* ----- CONNECTION ----- */
   io.emit('initial_ping');
@@ -128,65 +138,78 @@ io.on("connection", (socket) => {
 
   /* ===== EVENT LISTENERS ===== */
   /* ----- DISCONNECTION ----- */
+  socket.on("i_reconnected", () => {
+    // reconnected so set isReconnecting off
+    console.log(`${socket.id} reconnected we're good`);
+    if (playerRooms.has(socket.id)) {
+      games.get(playerRooms.get(socket.id)).getPlayerById(socket.id).setIsReconnecting(false);
+    }
+  });
+
   socket.on("disconnect", (reason, details) => {
     console.log(`User ${socket.id} disconnected because: ${reason} and ${details}`);
 
-    if (playerRooms.has(socket.id)) { // player was in a room
+    if (playerRooms.has(socket.id)) { // player in room
       const roomCode = playerRooms.get(socket.id);
       const game = games.get(roomCode);
       const player = game.getPlayerById(socket.id);
+      console.log("before setting player is reconnecting: ", player.getIsReconnecting());
+      player.setIsReconnecting(true);
+      console.log("after setting player is reconnecting: ", player.getIsReconnecting());
 
-      if (game.getPlayers().length === 1) { // ofc hasn't started
-        games.delete(roomCode);
-        playerRooms.delete(socket.id);
-        console.log(`Game ${roomCode || "undefined"} has been deleted`);
-        return;
-      } else {
-        if (game.getTeamSelectHappening()) {
-          if (player.getIsLeader()) {
-            // if they were leader, then change leader and start new team selection
-            game.handleTeamSelect(io, game.changeAndGetNewLeader().getUsername());
-          } else {
-            // emit to leader that they need to start again w the selection
-            for (const plr of game.getPlayers()) {
-              if (plr.getIsLeader()) {
-                io.to(plr.getId()).emit("restart_select");
+      checkIfPlayerReconnected(player, (reconnecting) => {
+        player.getIsReconnecting(false); // done
+
+        if (reconnecting) { // they're STILL reconnecting so disconnect
+          console.log("yes we are STILL reconnecting oops");
+          if (game.getPlayers().length === 1) { // ofc hasn't started
+            games.delete(roomCode);
+            playerRooms.delete(socket.id);
+            socket.leave(roomCode);
+            console.log(`Game ${roomCode || "undefined"} has been deleted`);
+            io.to(socket.id).emit("disconnected_player", roomCode);
+            return;
+          } else if (!game.getHasStarted()) {
+            if (player.getIsAdmin()) {
+              game.updateRoomAdmin(io, getTime());
+            }
+          } else if (game.getTeamSelectHappening()) {
+            if (player.getIsLeader()) {
+              // if they were leader, then change leader and start new team selection
+              game.handleTeamSelect(io, game.changeAndGetNewLeader().getUsername());
+            } else {
+              // emit to leader that they need to start again w the selection
+              for (const plr of game.getPlayers()) {
+                if (plr.getIsLeader()) {
+                  io.to(plr.getId()).emit("restart_select");
+                }
               }
             }
+          } else if (game.getVoteHappening()) {
+            // Disconnected player omit vote approve
+            game.handleVoteEntries(io, "", true); // fields don't matter
+          } else if (game.getMissionHappening()) {
+            // just have disconnected player pass
+            game.addCurMissionTally(true);
           }
-        } else if (game.getVoteHappening()) {
-          // Disconnected player omit vote approve
-          game.handleVoteEntries(io, "", true); // fields don't matter
-        } else if (game.getMissionHappening()) {
-          // just have disconnected player pass
-          game.addCurMissionTally(true);
+
+          // happens if user is in a room with someone
+          game.removePlayer(player.getUsername());
+          const disconnectMsg = {
+            msg: `${player.getUsername()} has disconnected`,
+            sender: "GAME MASTER",
+            time: getTime()
+          };
+          game.updateChatMsg(io, disconnectMsg);
+          socket.to(roomCode).emit("player_left_seat");
+          io.to(socket.id).emit("disconnected_player", roomCode);
+          playerRooms.delete(socket.id);
+          socket.leave(roomCode);
+          console.log("it's done, we were removed");
+        } else {
+          console.log("no we're done reconnecting it's fine we stay");
         }
-        
-        // game's started but no action needed
-        // or otherwise game hasn't started :), no action needed
-      }
-
-      // reset player
-      player.setIsLeader(false);
-      player.setOnMission(false);
-
-      // change game settings to reflect disconnection
-      if (player.getIsAdmin()) {
-        game.updateRoomAdmin(io, getTime());
-      }
-      game.removePlayer(player.getUsername());
-
-      const disconnectMsg = {
-        msg: `${player.getUsername()} has disconnected`,
-        sender: "GAME MASTER",
-        time: getTime()
-      };
-      game.updateChatMsg(io, disconnectMsg);
-      console.log("emitting player left");
-      socket.to(roomCode).emit("player_has_left");
-      io.to(socket.id).emit("disconnected_player", roomCode);
-      playerRooms.delete(socket.id);
-      return;
+      });
     }
   });
 
@@ -380,6 +403,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("request_seats", (username, roomCode) => {
+    console.log(username, roomCode);
     games.get(roomCode).updateSeats(io, true, username, socket);
   });
 });

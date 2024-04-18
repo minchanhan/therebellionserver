@@ -247,7 +247,6 @@ class Game {
         curSelectedPlayers.push(player.getUsername());
       }
     }
-    console.log(curSelectedPlayers);
     return curSelectedPlayers;
   };
 
