@@ -21,6 +21,7 @@ class Game {
     missionHistory,
     curVoteTally,
     curMissionTally,
+    revealPlayerArr,
   ) {
     // game settings
     this.roomCode = roomCode; // string
@@ -47,6 +48,7 @@ class Game {
 
     this.curVoteTally = curVoteTally; // [arr[approve Player], arr[disapprove Player]] (used only in server)
     this.curMissionTally = curMissionTally; // int (used only in server)
+    this.revealPlayerArr = revealPlayerArr; // arr[reveal msg]
   };
 
   /* ===== PROPERTIES ===== */
@@ -136,14 +138,21 @@ class Game {
         return;
       }
     }
-  }
+  };
   getPlayerByUsername(username) {
     for (const player of this.players) {
       if (player.getUsername() === username) {
         return player;
       }
     }
-  }
+  };
+  getPlayerById(id) {
+    for (const player of this.players) {
+      if (player.getId() === id) {
+        return player;
+      }
+    }
+  };
 
   getMsgList() {
     return this.msgList;
@@ -160,7 +169,7 @@ class Game {
   };
   setCurMission(curMission) {
     this.curMission = curMission;
-  }
+  };
 
   getCurMissionVoteDisapproves() {
     return this.curMissionVoteDisapproves;
@@ -202,6 +211,16 @@ class Game {
       this.curMissionTally[0] += 1
     } else {
       this.curMissionTally[1] += 1;
+    }
+  };
+
+  getRevealPlayerArr() {
+    return this.revealPlayerArr;
+  };
+  setRevealPlayerArr() {
+    for (const player of this.players) {
+      const msg = player.getTeam() === Team.Bad ? "a Spy" : "on The Rebellion";
+      this.revealPlayerArr.push(`${player.getUsername()} was ${msg}`);
     }
   };
 
@@ -250,15 +269,6 @@ class Game {
     }
     return fails;
   };
-
-  getPlayerRevealArr() {
-    var reveal = [];
-    for (const player of this.players) {
-      const msg = player.getTeam() === Team.Bad ? "a Spy" : "on The Rebellion";
-      reveal.push(`${player.getUsername()} was ${msg}`);
-    }
-    return reveal;
-  };
   
   /* ===== HELPER FUNCTIONS ===== */
   shuffle(array) {
@@ -274,26 +284,6 @@ class Game {
       arr.push(value);
     }
     return arr;
-  };
-
-  updateRoomAdmin(io, newAdminUsername, manualTransfer=true, timestamp="") {
-    if (manualTransfer) {
-      io.to(this.roomAdmin.getId()).emit("is_admin_update", false);
-      this.roomAdmin.setIsAdmin(false);
-    }
-
-    const newAdmin = this.getPlayerByUsername(newAdminUsername);
-    io.to(newAdmin.getId()).emit("is_admin_update", true);
-    newAdmin.setIsAdmin(true);
-    this.roomAdmin = newAdmin;
-
-    this.sendGameSettingsChanges(io);
-    const adminTransferMsg = {
-      msg: `${newAdminUsername} has been made admin`,
-      sender: "GAME MASTER",
-      time: timestamp
-    };
-    this.updateChatMsg(io, adminTransferMsg);
   };
 
   startTimer(io, timerSeconds) {
@@ -313,7 +303,7 @@ class Game {
   };
 
   randomizeTeams() {
-    const goodTeamArr = this.fillArray(Team.Good, this.capacity - this.getNumSpies());
+    const goodTeamArr = this.fillArray(Team.Good, this.players.length - this.getNumSpies());
     const badTeamArr = this.fillArray(Team.Bad, this.getNumSpies());
     var teamArr = goodTeamArr.concat(badTeamArr);
 
@@ -339,6 +329,43 @@ class Game {
         }
       }
     }
+  };
+
+  changeAndGetNewAdmin() {
+    for (let i = 0; i < this.players.length; i++) {
+      const player = this.players[i];
+      if (player.getIsAdmin()) {
+        player.setIsAdmin(false);
+        if ((i+1) === this.players.length) {
+          this.players[0].setIsAdmin(true);
+          return this.players[0];
+        } else {
+          this.players[i+1].setIsAdmin(true);
+          return this.players[i+1];
+        }
+      }
+    }
+  };
+
+  updateRoomAdmin(io, timestamp, newAdminUsername="", manualTransfer=false) {
+    const newAdmin = manualTransfer ? this.getPlayerByUsername(newAdminUsername) 
+                    : this.changeAndGetNewAdmin();
+    newAdmin.setIsAdmin(true);
+    io.to(newAdmin.getId()).emit("is_admin_update", true);
+
+    // update old admin settings
+    this.roomAdmin.setIsAdmin(false);
+    io.to(this.roomAdmin.getId()).emit("is_admin_update", false);
+
+    this.roomAdmin = newAdmin;
+    
+    this.sendGameSettingsChanges(io);
+    const adminTransferMsg = {
+      msg: `${newAdmin.getUsername()} has been made admin`,
+      sender: "GAME MASTER",
+      time: timestamp
+    };
+    this.updateChatMsg(io, adminTransferMsg);
   };
 
   /* ===== EMITS TO CLIENT ===== */
@@ -441,13 +468,13 @@ class Game {
     });
   };
 
-  handleVoteEntries(io, voter, approve) {
-    this.addCurVoteTally(voter, approve);
+  handleVoteEntries(io, voter, approve, omit=false) {
+    if (!omit) this.addCurVoteTally(voter, approve);
 
     const approvals = this.curVoteTally[0].length;
     const disapprovals = this.curVoteTally[1].length;
 
-    if ((approvals + disapprovals) === this.capacity) {
+    if ((approvals + disapprovals) >= this.players.length) {
       const voteApproved = (approvals - disapprovals) > 0;
 
       const voteResultMsg = `${approvals > 0 ? this.curVoteTally[0].join(', ') : "Nobody"} approved the team.
@@ -468,7 +495,7 @@ class Game {
       }
       return;
     }
-  }
+  };
 
   handleMission(io) {
     this.curMissionVoteDisapproves = 0;
@@ -494,11 +521,7 @@ class Game {
     const fails = this.curMissionTally[1];
     const missionTeamSize = this.getMissionTeamSizes()[(this.curMission - 1)];
 
-    console.log("passes: ", passes);
-    console.log("fails: ", fails);
-    console.log(missionTeamSize);
-
-    if (passes + fails === missionTeamSize) {
+    if (passes + fails >= missionTeamSize) {
       const missionResult = this.capacity >= 7 && this.curMission === 4 ? fails < 2 : fails === 0;
       this.setMissionResultTrack(this.curMission, missionResult);
       this.setMissionHistory(this.curMission, this.getCurSelectedPlayers());
@@ -515,15 +538,16 @@ class Game {
       this.curMission += 1;
       this.handleTeamSelect(io, this.changeAndGetNewLeader().getUsername());
     }
-  }
+  };
 
   startGame(io) {
     // start game
     this.setHasStarted(true);
     // randomize teams
     this.randomizeTeams();
+    this.setRevealPlayerArr();
     // randomize leader
-    const leaderIndex = Math.floor(Math.random() * this.capacity); // range 0 to (cap - 1)
+    const leaderIndex = Math.floor(Math.random() * this.players.length); // range 0 to (cap - 1)
     const leader = this.players[leaderIndex];
     leader.setIsLeader(true);
 
@@ -555,6 +579,7 @@ class Game {
       MissionResult.None
     ];
     this.missionHistory = [[],[],[],[],[]];
+
     for (const player of this.players) {
       player.setTeam(Team.Unknown);
       player.setIsLeader(false);
@@ -563,9 +588,11 @@ class Game {
     this.updateSeats(io);
     
     io.to(this.roomCode).emit("set_game_end", { 
-      playerRevealArr: this.getPlayerRevealArr(), 
+      playerRevealArr: this.revealPlayerArr, 
       endMsg: "Game Over: " + message, 
     });
+
+    this.revealPlayerArr = [];
   };
 }
 

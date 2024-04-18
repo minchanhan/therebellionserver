@@ -40,6 +40,7 @@ const io = new Server(server, { // for work with socket.io
 });
 
 var games = new Map();
+var playerRooms = new Map();
 
 /* ===== HELPER FUNCTIONS ===== */
 const getTime = () => {
@@ -115,6 +116,7 @@ io.on("connection", (socket) => {
     const uniqueName = setAndReturnUniqueName(game, username);
     const player = newPlayer(socket.id, uniqueName, false);
     socket.join(roomCode);
+    playerRooms.set(socket.id, roomCode);
     game.addPlayer(player);
 
     const joinMsg = {
@@ -129,52 +131,62 @@ io.on("connection", (socket) => {
   socket.on("disconnect", (reason, details) => {
     console.log(`User ${socket.id} disconnected because: ${reason} and ${details}`);
 
-    if (games.size === 0) return;
-    if (socket.data.roomCode == null) return;
-
-    const roomCode = socket.data.roomCode;
-    var game = games.get(roomCode);
-
-    if (game == null) return;
-
-    const byeMsg = {
-      msg: `${game.getPlayerById(socket.id, game.getPlayers().length)?.getUsername()} has disconnected`,
-      sender: "GAME MASTER",
-      time: getTime()
-    };
-    io.to(roomCode).emit("msg_list_update", byeMsg);
-
-    if (game.getHasStarted()) { // In game, non lobby
-      game.endGame(game, io, false, true, socket.id, socket.data.isAdmin, socket);
-    } else { // lobby
-      if (game.getPlayers().length <= 1) {
-        games.delete(roomCode); // no emit needed, there'll be nothing left
-        console.log(`Game with roomcode: ${roomCode || "undefined"} has been deleted`);
-      } else {
-        game.removePlayer(username);
-        if (socket.data.isAdmin) {
-          game.updateRoomAdmin(io, game.getPlayers()[0].getUsername(), getTime());
-        }
-        game.sendSeatingInfo(io);
-      }
-    }
-  });
-
-  /* ----- IN ROOM CHECK ----- */
-  /* socket.on("am_i_in_room", (room, areYouInRoom) => {
-    areYouInRoom({ inRoom: socket.rooms.has(room) });
-  }); */
-
-  /* ----- REMOVE PLAYER ----- */
-  socket.on("remove_me", (username, roomCode, isAdmin) => {
-    console.log("remove me called", username, roomCode, isAdmin);
-    if (socket.rooms.has(roomCode)) {
+    if (playerRooms.has(socket.id)) { // player was in a room
+      const roomCode = playerRooms.get(socket.id);
       const game = games.get(roomCode);
-      if (checkNameInGame(username, game.getPlayers().length, game)) {
-        game.removePlayer(username);
-        if (game.getHasStarted()) game.endGame(io, false, true, isAdmin);
-        socket.leave(roomCode);
+      const player = game.getPlayerById(socket.id);
+
+      if (game.getPlayers().length === 1) { // ofc hasn't started
+        games.delete(roomCode);
+        playerRooms.delete(socket.id);
+        console.log(`Game ${roomCode || "undefined"} has been deleted`);
+        return;
+      } else {
+        if (game.getTeamSelectHappening()) {
+          if (player.getIsLeader()) {
+            // if they were leader, then change leader and start new team selection
+            game.handleTeamSelect(io, game.changeAndGetNewLeader().getUsername());
+          } else {
+            // emit to leader that they need to start again w the selection
+            for (const plr of game.getPlayers()) {
+              if (plr.getIsLeader()) {
+                io.to(plr.getId()).emit("restart_select");
+              }
+            }
+          }
+        } else if (game.getVoteHappening()) {
+          // Disconnected player omit vote approve
+          game.handleVoteEntries(io, "", true); // fields don't matter
+        } else if (game.getMissionHappening()) {
+          // just have disconnected player pass
+          game.addCurMissionTally(true);
+        }
+        
+        // game's started but no action needed
+        // or otherwise game hasn't started :), no action needed
       }
+
+      // reset player
+      player.setIsLeader(false);
+      player.setOnMission(false);
+
+      // change game settings to reflect disconnection
+      if (player.getIsAdmin()) {
+        game.updateRoomAdmin(io, getTime());
+      }
+      game.removePlayer(player.getUsername());
+
+      const disconnectMsg = {
+        msg: `${player.getUsername()} has disconnected`,
+        sender: "GAME MASTER",
+        time: getTime()
+      };
+      game.updateChatMsg(io, disconnectMsg);
+      console.log("emitting player left");
+      socket.to(roomCode).emit("player_has_left");
+      io.to(socket.id).emit("disconnected_player", roomCode);
+      playerRooms.delete(socket.id);
+      return;
     }
   });
 
@@ -210,9 +222,11 @@ io.on("connection", (socket) => {
       ], // missionResultTrack
       [[],[],[],[],[]], // missionHistory
       [[],[]], // curVoteTally,
-      [0,0], // curMissionTally
+      [0,0], // curMissionTally,
+      [], // revealPlayerArr
     );
     games.set(roomCode, game);
+    playerRooms.set(socket.id, roomCode);
 
     const createMsg = {
       msg: `${username} has created game`, sender: "GAME MASTER", time: getTime()
@@ -225,7 +239,7 @@ io.on("connection", (socket) => {
   socket.on("join_room", (username, roomCode, sendRoomValidity) => {
     if (roomCode === "random_join") {
       for (let [room, game] of games) {
-        if (game.getPlayers().length < game.getCapacity() && !game.getPrivateRoom()) {
+        if (game.getPlayers().length < game.getCapacity() && !game.getPrivateRoom() && !game.getHasStarted()) {
           handlePlayerJoin(socket, username, room, game, sendRoomValidity);
           return;
         }
@@ -240,7 +254,7 @@ io.on("connection", (socket) => {
 
     if (games.has(roomCode)) {
       const existingGame = games.get(roomCode);
-      const fullGame = existingGame.getPlayers().length >= existingGame.getCapacity();
+      const fullGame = existingGame.getPlayers().length >= existingGame.getCapacity() || existingGame.getHasStarted();
       if (!fullGame) {
         handlePlayerJoin(socket, username, roomCode, existingGame, sendRoomValidity);
         return;
@@ -257,12 +271,14 @@ io.on("connection", (socket) => {
   /* ----- LEAVE ROOM ----- */
   socket.on("leave_room", (roomCode) => {
     socket.leave(roomCode);
+    playerRooms.delete(socket.id);
   });
 
   /* ----- GAME SETTINGS ----- */
   socket.on("set_capacity", (newCapacity, roomCode) => { // game settings
-    games.get(roomCode).setCapacity(newCapacity);
-    io.to(roomCode).emit("capacity_change", newCapacity);
+    const game = games.get(roomCode);
+    game.setCapacity(newCapacity);
+    io.to(roomCode).emit("capacity_change", newCapacity, game.getMissionTeamSizes());
   });
   socket.on("set_selection_secs", (newSecs, roomCode) => { // game settings
     games.get(roomCode).setSelectionSecs(newSecs);
@@ -286,6 +302,10 @@ io.on("connection", (socket) => {
       console.log("# of sockets: ", io.engine.clientsCount);
       return;
     }
+    if (msgData.msg === process.env.PLAYER_ROOMS) {
+      console.log("playerRooms: ", playerRooms);
+      return;
+    }
 
     if (msgData.msg.slice(0, 5) === "/kick" && !game.getHasStarted() && isAdmin) {
       const kickedUsername = msgData.msg.slice(6, msgLen).toUpperCase();
@@ -299,8 +319,10 @@ io.on("connection", (socket) => {
         game.updateChatMsg(io, cmdErrorMsg);
         return;
       }
+
       const removedPlayerId = game.getPlayerByUsername(kickedUsername).getId();
       game.removePlayer(kickedUsername);
+
       game.updateSeats(io);
       const kickMsg = {
         msg: `${kickedUsername} was kicked by admin`,
@@ -308,8 +330,9 @@ io.on("connection", (socket) => {
         time: getTime()
       };
       game.updateChatMsg(io, kickMsg);
-
+      console.log("kicked player emit");
       io.to(removedPlayerId).emit("kicked_player");
+      playerRooms.delete(removedPlayerId);
       return;
     }
 
@@ -327,7 +350,7 @@ io.on("connection", (socket) => {
         return;
       }
 
-      game.updateRoomAdmin(io, newAdminUsername, true, getTime());
+      game.updateRoomAdmin(io, getTime(), newAdminUsername, true);
       return;
     }
 
