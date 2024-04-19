@@ -29,12 +29,12 @@ app.get('/', (req, res) => {
 });
 
 const server = http.createServer(app);
-const backupTime = 10 * 1000;
+const backupTime = 3 * 60 * 1000; // 3 mins
 
 const io = new Server(server, { // for work with socket.io
   cors: corsOptions,
   connectionStateRecovery: {
-    maxDisconnectionDuration: backupTime - 500, // 15 secs backup, but disable bit quicker in case
+    maxDisconnectionDuration: backupTime,
     skipMiddlewares: true,
   },
   transports: ["websocket"]
@@ -96,26 +96,10 @@ const newPlayer = (id, username, isAdmin) => {
   return player;
 };
 
-const checkIfPlayerReconnected = (player, callback) => {
-  console.log("starting timer for reconnect");
-  let interval = setInterval(() => {
-    console.log("times up, still reconnecting?");
-    clearInterval(interval);
-    callback(player.getIsReconnecting());
-  }, backupTime);
-};
-
 io.on("connection", (socket) => {
-  /* ----- CONNECTION ----- */
-  io.emit('initial_ping');
-
-  if (socket.recovered) {
-    console.log(`Socket recovered with id: ${socket.id}`);
-  } else {
-    console.log(`Brand new connection with id: ${socket.id}`);
-  }
-
   /* ===== EMITS ===== */
+  io.emit("initial_ping", io.engine.clientsCount);
+  
   const sendInitialInfo = (game, msg) => {
     game.sendGameSettingsChanges(io);
     game.updateChatMsg(io, msg);
@@ -136,80 +120,41 @@ io.on("connection", (socket) => {
     sendRoomValidity({ roomExists: true, roomCode: roomCode, uniqueName: uniqueName });
   };
 
+  /* ----- CONNECTION ----- */
+  if (socket.recovered) {
+    console.log(`${new Date().toISOString()}: Socket recovered with id: ${socket.id}`);
+    if (playerRooms.has(socket.id)) {
+      const roomCode = playerRooms.get(socket.id);
+      const game = games.get(roomCode);
+      game.getPlayerById(socket.id).setIsDisconnected(false);
+      io.to(roomCode).emit("request_for_seats");
+    }
+  } else {
+    console.log(`${new Date().toISOString()}: Brand new connection with id: ${socket.id}`);
+  }
+
   /* ===== EVENT LISTENERS ===== */
   /* ----- DISCONNECTION ----- */
-  socket.on("i_reconnected", () => {
-    // reconnected so set isReconnecting off
-    console.log(`${socket.id} reconnected we're good`);
-    if (playerRooms.has(socket.id)) {
-      games.get(playerRooms.get(socket.id)).getPlayerById(socket.id).setIsReconnecting(false);
-    }
-  });
-
   socket.on("disconnect", (reason, details) => {
-    console.log(`User ${socket.id} disconnected because: ${reason} and ${details}`);
-
-    if (playerRooms.has(socket.id)) { // player in room
+    console.log(`${new Date().toISOString()}: ${socket.id} disconnected because: ${reason}`);
+    
+    if (playerRooms.has(socket.id)) {
       const roomCode = playerRooms.get(socket.id);
       const game = games.get(roomCode);
       const player = game.getPlayerById(socket.id);
-      console.log("before setting player is reconnecting: ", player.getIsReconnecting());
-      player.setIsReconnecting(true);
-      console.log("after setting player is reconnecting: ", player.getIsReconnecting());
+      if (game?.getPlayers().length <= 1) {
+        games.delete(roomCode);
+        return;
+      }
+      player.setIsDisconnected(true);
+      io.to(roomCode).emit("request_for_seats");
 
-      checkIfPlayerReconnected(player, (reconnecting) => {
-        player.getIsReconnecting(false); // done
-
-        if (reconnecting) { // they're STILL reconnecting so disconnect
-          console.log("yes we are STILL reconnecting oops");
-          if (game.getPlayers().length === 1) { // ofc hasn't started
-            games.delete(roomCode);
-            playerRooms.delete(socket.id);
-            socket.leave(roomCode);
-            console.log(`Game ${roomCode || "undefined"} has been deleted`);
-            io.to(socket.id).emit("disconnected_player", roomCode);
-            return;
-          } else if (!game.getHasStarted()) {
-            if (player.getIsAdmin()) {
-              game.updateRoomAdmin(io, getTime());
-            }
-          } else if (game.getTeamSelectHappening()) {
-            if (player.getIsLeader()) {
-              // if they were leader, then change leader and start new team selection
-              game.handleTeamSelect(io, game.changeAndGetNewLeader().getUsername());
-            } else {
-              // emit to leader that they need to start again w the selection
-              for (const plr of game.getPlayers()) {
-                if (plr.getIsLeader()) {
-                  io.to(plr.getId()).emit("restart_select");
-                }
-              }
-            }
-          } else if (game.getVoteHappening()) {
-            // Disconnected player omit vote approve
-            game.handleVoteEntries(io, "", true); // fields don't matter
-          } else if (game.getMissionHappening()) {
-            // just have disconnected player pass
-            game.addCurMissionTally(true);
-          }
-
-          // happens if user is in a room with someone
-          game.removePlayer(player.getUsername());
-          const disconnectMsg = {
-            msg: `${player.getUsername()} has disconnected`,
-            sender: "GAME MASTER",
-            time: getTime()
-          };
-          game.updateChatMsg(io, disconnectMsg);
-          socket.to(roomCode).emit("player_left_seat");
-          io.to(socket.id).emit("disconnected_player", roomCode);
-          playerRooms.delete(socket.id);
-          socket.leave(roomCode);
-          console.log("it's done, we were removed");
-        } else {
-          console.log("no we're done reconnecting it's fine we stay");
-        }
-      });
+      const disconnectMsg = {
+        msg: `${player.getUsername()} has left...`,
+        sender: "GAME MASTER",
+        time: getTime()
+      };
+      game.updateChatMsg(io, disconnectMsg);
     }
   });
 
@@ -255,6 +200,14 @@ io.on("connection", (socket) => {
       msg: `${username} has created game`, sender: "GAME MASTER", time: getTime()
     };
     sendInitialInfo(game, createMsg);
+
+    const adminCmds = {
+      msg: `Admin Commands: /kick <player> and /makeadmin <player>`,
+      sender: "GAME MASTER",
+      time: getTime()
+    };
+    game.updateChatMsg(io, adminCmds);
+
     navigateTo({ room: roomCode });
   });
 
@@ -293,8 +246,9 @@ io.on("connection", (socket) => {
 
   /* ----- LEAVE ROOM ----- */
   socket.on("leave_room", (roomCode) => {
-    socket.leave(roomCode);
-    playerRooms.delete(socket.id);
+    console.log("leave room called");
+    playerRooms?.delete(socket.id);
+    socket?.leave(roomCode);
   });
 
   /* ----- GAME SETTINGS ----- */
@@ -333,6 +287,15 @@ io.on("connection", (socket) => {
     if (msgData.msg.slice(0, 5) === "/kick" && !game.getHasStarted() && isAdmin) {
       const kickedUsername = msgData.msg.slice(6, msgLen).toUpperCase();
       if (kickedUsername === username) return;
+      if (game.getHasStarted()) {
+        const cmdErrorMsg = {
+          msg: `Cannot kick ${kickedUsername}, end game first`,
+          sender: "GAME MASTER",
+          time: getTime()
+        };
+        game.updateChatMsg(io, cmdErrorMsg);
+        return;
+      }
       if (!checkNameInGame(kickedUsername, game.getPlayers().length, game)) {
         const cmdErrorMsg = {
           msg: `Admin tried kicking ${kickedUsername} but they're not in lobby, try removing extra spaces in this command?`,
@@ -353,17 +316,16 @@ io.on("connection", (socket) => {
         time: getTime()
       };
       game.updateChatMsg(io, kickMsg);
-      console.log("kicked player emit");
       io.to(removedPlayerId).emit("kicked_player");
-      playerRooms.delete(removedPlayerId);
       return;
     }
 
-    if (msgData.msg.slice(0, 6) === "/admin" && isAdmin) {
+    if (msgData.msg.slice(0, 10) === "/makeadmin" && isAdmin) {
       const newAdminUsername = msgData.msg.slice(7, msgLen).toUpperCase();
       if (newAdminUsername === username) return;
 
-      if (!checkNameInGame(newAdminUsername, game.getPlayers().length, game)) {
+      if (!checkNameInGame(newAdminUsername, game.getPlayers().length, game)
+          || game.getPlayerByUsername(newAdminUsername).getIsDisconnected()) {
         const cmdErrorMsg = {
           msg: `Can't transfer admin role, ${newAdminUsername} is not in lobby, try removing extra spaces in this command?`,
           sender: "GAME MASTER",
@@ -403,7 +365,6 @@ io.on("connection", (socket) => {
   });
 
   socket.on("request_seats", (username, roomCode) => {
-    console.log(username, roomCode);
     games.get(roomCode).updateSeats(io, true, username, socket);
   });
 });

@@ -395,6 +395,7 @@ class Game {
         player.getIsLeader(),
         player.getOnMission(),
         Team.Unknown,
+        player.getIsDisconnected()
       ]);
 
       if (gameStart) {
@@ -579,13 +580,20 @@ class Game {
     ];
     this.missionHistory = [[],[],[],[],[]];
 
-    for (const player of this.players) {
+    for (const i in players) {
+      if (player.getIsDisconnected()) {
+        this.players.splice(i, 1);
+      }
+    }
+
+    for (const player of players) { // connected players
       player.setTeam(Team.Unknown);
       player.setIsLeader(false);
       player.setOnMission(false);
     }
+
     this.updateSeats(io);
-    
+  
     io.to(this.roomCode).emit("set_game_end", { 
       playerRevealArr: this.revealPlayerArr, 
       endMsg: "Game Over: " + message, 
