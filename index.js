@@ -29,7 +29,7 @@ app.get('/', (req, res) => {
 });
 
 const server = http.createServer(app);
-const backupTime = 3 * 60 * 1000; // 3 mins
+const backupTime = 10 * 60 * 1000; // 10 mins
 
 const io = new Server(server, { // for work with socket.io
   cors: corsOptions,
@@ -123,11 +123,24 @@ io.on("connection", (socket) => {
   /* ----- CONNECTION ----- */
   if (socket.recovered) {
     console.log(`${new Date().toISOString()}: Socket recovered with id: ${socket.id}`);
+    
     if (playerRooms.has(socket.id)) {
       const roomCode = playerRooms.get(socket.id);
       const game = games.get(roomCode);
-      game.getPlayerById(socket.id).setIsDisconnected(false);
-      io.to(roomCode).emit("request_for_seats");
+      if (game == null) return;
+      const player = game.getPlayerById(socket.id);
+
+      if (game.getHasStarted()) {
+        player.setIsDisconnected(false); // ungray out player
+
+        const reconnectMsg = {
+          msg: `${player.getUsername()} has rejoined...`,
+          sender: "GAME MASTER",
+          time: getTime()
+        };
+        game.updateChatMsg(io, reconnectMsg);
+        io.to(roomCode).emit("request_for_seats");
+      }
     }
   } else {
     console.log(`${new Date().toISOString()}: Brand new connection with id: ${socket.id}`);
@@ -135,26 +148,38 @@ io.on("connection", (socket) => {
 
   /* ===== EVENT LISTENERS ===== */
   /* ----- DISCONNECTION ----- */
-  socket.on("disconnect", (reason, details) => {
+  socket.on("disconnect", (reason) => {
     console.log(`${new Date().toISOString()}: ${socket.id} disconnected because: ${reason}`);
     
-    if (playerRooms.has(socket.id)) {
+    if (playerRooms.has(socket.id)) { // player must be in room
       const roomCode = playerRooms.get(socket.id);
       const game = games.get(roomCode);
+      if (game == null) return;
       const player = game.getPlayerById(socket.id);
-      if (game?.getPlayers().length <= 1) {
-        games.delete(roomCode);
-        return;
-      }
-      player.setIsDisconnected(true);
-      io.to(roomCode).emit("request_for_seats");
 
+      if (game.getHasStarted()) {
+        player.setIsDisconnected(true);
+      } else {
+        // remove player on disconnect if game hasn't started yet
+        socket.emit("disconnected_player");
+        game.removePlayer(player.getUsername());
+        socket.leave(roomCode);
+        playerRooms.delete(socket.id);
+
+        if (game.getPlayers().length === 0) {
+          games.delete(roomCode);
+          console.log(`${new Date().toISOString()}: Deleted ${roomCode}`);
+          return;
+        }
+      }
+      
       const disconnectMsg = {
         msg: `${player.getUsername()} has left...`,
         sender: "GAME MASTER",
         time: getTime()
       };
       game.updateChatMsg(io, disconnectMsg);
+      io.to(roomCode).emit("request_for_seats");
     }
   });
 
@@ -164,7 +189,7 @@ io.on("connection", (socket) => {
     const admin = newPlayer(socket.id, username, true);
     const roomCode = generateRoomCode();
     socket.join(roomCode);
-    console.log("Created room: ", roomCode);
+    console.log(`${new Date().toISOString()}: Created ${roomCode}`);
 
     const game = new Game(
       roomCode, // roomCode
@@ -246,9 +271,7 @@ io.on("connection", (socket) => {
 
   /* ----- LEAVE ROOM ----- */
   socket.on("leave_room", (roomCode) => {
-    console.log("leave room called");
-    playerRooms?.delete(socket.id);
-    socket?.leave(roomCode);
+    socket.leave(roomCode);
   });
 
   /* ----- GAME SETTINGS ----- */
@@ -258,11 +281,11 @@ io.on("connection", (socket) => {
     io.to(roomCode).emit("capacity_change", newCapacity, game.getMissionTeamSizes());
   });
   socket.on("set_selection_secs", (newSecs, roomCode) => { // game settings
-    games.get(roomCode).setSelectionSecs(newSecs);
+    games.get(roomCode)?.setSelectionSecs(newSecs);
     io.to(roomCode).emit("selection_secs_change", newSecs);
   });
   socket.on("set_private_room", (newPrivateRoom, roomCode) => { // game settings
-    games.get(roomCode).setPrivateRoom(newPrivateRoom);
+    games.get(roomCode)?.setPrivateRoom(newPrivateRoom);
     io.to(roomCode).emit("private_room_change", newPrivateRoom);
   });
 
@@ -316,6 +339,7 @@ io.on("connection", (socket) => {
         time: getTime()
       };
       game.updateChatMsg(io, kickMsg);
+      playerRooms.delete(removedPlayerId);
       io.to(removedPlayerId).emit("kicked_player");
       return;
     }
@@ -345,7 +369,7 @@ io.on("connection", (socket) => {
 
   /* ----- GAMEPLAY ----- */
   socket.on("admin_start_game", (roomCode) => {
-    games.get(roomCode).startGame(io);
+    games.get(roomCode)?.startGame(io);
   });
 
   socket.on("team_submitted_for_vote", (info) => {
@@ -368,6 +392,31 @@ io.on("connection", (socket) => {
     games.get(roomCode).updateSeats(io, true, username, socket);
   });
 });
+
+setInterval(() => {
+  for (let [room, game] of games) {
+    if (game.getPlayers().length === 0) {
+      games.delete(room);
+      console.log(`${new Date().toISOString()}: Deleted ${room}`);
+    } else {
+      for (const player of game.getPlayers()) {
+        if (!player.getIsDisconnected()) {
+          return;
+        }
+      }
+      // there are no connected players?
+
+      for (const player of game.getPlayers()) {
+        io.to(player.getId()).emit("kicked_player");
+        playerRooms.delete(player.getId());
+        // socket should just be erased a this point, if not, then they will
+        // after receiving the kicked_player emit
+      }
+      games.delete(room);
+      console.log(`${new Date().toISOString()}: Deleted ${room}`);
+    }
+  }
+}, 10000);
 
 // server running...
 server.listen(process.env.PORT, () => {
