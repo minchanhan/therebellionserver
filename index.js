@@ -159,6 +159,7 @@ io.on("connection", (socket) => {
 
       if (game.getHasStarted()) {
         player.setIsDisconnected(true);
+        io.to(roomCode).emit("request_for_seats");
       } else {
         // remove player on disconnect if game hasn't started yet
         socket.emit("disconnected_player");
@@ -171,6 +172,7 @@ io.on("connection", (socket) => {
           console.log(`${new Date().toISOString()}: Deleted ${roomCode}`);
           return;
         }
+        game.updateSeats(io);
       }
       
       const disconnectMsg = {
@@ -179,7 +181,6 @@ io.on("connection", (socket) => {
         time: getTime()
       };
       game.updateChatMsg(io, disconnectMsg);
-      io.to(roomCode).emit("request_for_seats");
     }
   });
 
@@ -389,7 +390,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("request_seats", (username, roomCode) => {
-    games.get(roomCode).updateSeats(io, true, username, socket);
+    games.get(roomCode).updateSeats(io, username, socket);
   });
 });
 

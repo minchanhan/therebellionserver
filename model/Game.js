@@ -385,7 +385,7 @@ class Game {
     io.to(this.roomCode).emit("msg_list_update", this.msgList);
   };
 
-  updateSeats(io, gameStart=false, username="", socket=null) {
+  updateSeats(io, username="", socket=null) {
     // loop through players for info based on team
     var seats = [];
     for (let i = 0; i < this.players.length; i++) {
@@ -398,7 +398,7 @@ class Game {
         player.getIsDisconnected()
       ]);
 
-      if (gameStart) {
+      if (this.hasStarted) {
         if (
           player.getUsername() === username 
           || this.getPlayerByUsername(username).getTeam() === Team.Bad
@@ -408,7 +408,7 @@ class Game {
       }
     };
 
-    if (gameStart) {
+    if (this.hasStarted) {
       socket.emit("seats_update", seats);
     } else {
       io.to(this.roomCode).emit("seats_update", seats);
