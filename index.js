@@ -122,7 +122,7 @@ io.on("connection", (socket) => {
 
   /* ----- CONNECTION ----- */
   if (socket.recovered) {
-    console.log(`${new Date().toISOString()}: Socket recovered with id: ${socket.id}`);
+    // console.log(`${new Date().toISOString()}: Socket recovered with id: ${socket.id}`);
     
     if (playerRooms.has(socket.id)) {
       const roomCode = playerRooms.get(socket.id);
@@ -143,13 +143,13 @@ io.on("connection", (socket) => {
       }
     }
   } else {
-    console.log(`${new Date().toISOString()}: Brand new connection with id: ${socket.id}`);
+    // console.log(`${new Date().toISOString()}: Brand new connection with id: ${socket.id}`);
   }
 
   /* ===== EVENT LISTENERS ===== */
   /* ----- DISCONNECTION ----- */
   socket.on("disconnect", (reason) => {
-    console.log(`${new Date().toISOString()}: ${socket.id} disconnected because: ${reason}`);
+    // console.log(`${new Date().toISOString()}: ${socket.id} disconnected because: ${reason}`);
     
     if (playerRooms.has(socket.id)) { // player must be in room
       const roomCode = playerRooms.get(socket.id);
@@ -175,7 +175,7 @@ io.on("connection", (socket) => {
 
         if (game.getPlayers().length === 0) {
           games.delete(roomCode);
-          console.log(`${new Date().toISOString()}: Deleted ${roomCode}`);
+          // console.log(`${new Date().toISOString()}: Deleted ${roomCode}`);
           return;
         }
         game.updateSeats(io);
@@ -196,7 +196,7 @@ io.on("connection", (socket) => {
     const admin = newPlayer(socket.id, username, true);
     const roomCode = generateRoomCode();
     socket.join(roomCode);
-    console.log(`${new Date().toISOString()}: Created ${roomCode}`);
+    // console.log(`${new Date().toISOString()}: Created ${roomCode}`);
 
     const game = new Game(
       roomCode, // roomCode
@@ -408,7 +408,7 @@ setInterval(() => {
   for (let [room, game] of games) {
     if (game.getPlayers().length === 0) {
       games.delete(room);
-      console.log(`${new Date().toISOString()}: Deleted ${room}`);
+      // console.log(`${new Date().toISOString()}: Deleted ${room}`);
     } else {
       for (const player of game.getPlayers()) {
         if (!player.getIsDisconnected()) {
@@ -424,7 +424,7 @@ setInterval(() => {
         // after receiving the kicked_player emit
       }
       games.delete(room);
-      console.log(`${new Date().toISOString()}: Deleted ${room}`);
+      // console.log(`${new Date().toISOString()}: Deleted ${room}`);
     }
   }
 }, 10000);
