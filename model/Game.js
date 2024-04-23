@@ -534,9 +534,12 @@ class Game {
     const missionTeamSize = this.getMissionTeamSizes()[(this.curMission - 1)];
 
     if (passes + fails >= missionTeamSize) {
-      const missionResult = this.capacity >= 7 && this.curMission === 4 ? fails < 2 : fails === 0;
+      const missionResult = this.capacity >= 7 && this.curMission === 4 ? fails < 2 : fails === 0; // pass = true
       this.setMissionResultTrack(this.curMission, missionResult);
       this.setMissionHistory(this.curMission, this.getCurSelectedPlayers());
+
+      const missionResultMsg = `Mission ${missionResult ? "passed" : "failed"} with ${fails} fails`;
+      this.sendGameMasterMsg(io, missionResultMsg);
 
       if (this.getMissionPasses() === 3) {
         this.endGame(io, false, true);
