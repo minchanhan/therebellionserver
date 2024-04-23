@@ -513,7 +513,10 @@ class Game {
 
     // send pass/fail action to players onMissionTeam
     for (const player of this.players) { 
-      io.to(player.getId()).emit("mission_happening", player.getOnMission());
+      io.to(player.getId()).emit("mission_happening", 
+        player.getOnMission(),
+        player.getTeam() === "goodTeam"
+      );
     }
 
     const selectedPlayers = this.getCurSelectedPlayers();
