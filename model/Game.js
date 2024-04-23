@@ -385,7 +385,7 @@ class Game {
     io.to(this.roomCode).emit("msg_list_update", this.msgList);
   };
 
-  updateSeats(io, username="", socket=null) {
+  updateSeats(io, revealAll=false, username="", socket=null) {
     // loop through players for info based on team
     var seats = [];
     for (let i = 0; i < this.players.length; i++) {
@@ -405,6 +405,8 @@ class Game {
         ) {
           seats[i][3] = player.getTeam();
         }
+      } else if (revealAll) {
+        seats[i][3] = player.getTeam();
       }
     };
 
@@ -487,7 +489,7 @@ class Game {
         this.curMissionVoteDisapproves += 1;
 
         if (this.curMissionVoteDisapproves > 4) {
-          this.endGame(io, false);
+          this.endGame(io, false, false);
           return;
         }
 
@@ -527,10 +529,10 @@ class Game {
       this.setMissionHistory(this.curMission, this.getCurSelectedPlayers());
 
       if (this.getMissionPasses() === 3) {
-        this.endGame(io, true);
+        this.endGame(io, false, true);
         return;
       } else if (this.getMissionFails() === 3) {
-        this.endGame(io, false);
+        this.endGame(io, false, false);
         return;
       }
 
@@ -541,6 +543,24 @@ class Game {
   };
 
   startGame(io) {
+    // reset
+    for (const player of this.players) { // connected players reset
+      player.setTeam(Team.Unknown);
+      player.setIsLeader(false);
+      player.setOnMission(false);
+      // setting on mission false
+    }
+
+    this.curMissionVoteDisapproves = 0;
+    this.missionResultTrack = [
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None, 
+      MissionResult.None
+    ];
+    this.missionHistory = [[],[],[],[],[]];
+
     // start game
     this.setHasStarted(true);
     // randomize teams
@@ -557,44 +577,33 @@ class Game {
 
   endGame(
     io, 
-    win=true, 
-    disconnect=false,
+    adminEnded,
+    win=true
   ) {
-    const message = win ? "The Rebellion Wins" : 
-                    !disconnect ? "The Spies Win" : 
-                    disconnect ? "Game Aborted Due to User Disconnect >:(" :
-                    "Game Over";
+    const message = adminEnded ? "Game ended by admin" 
+                    : win ? "The Rebellion Wins"
+                    : "The Spies Win"
 
-    this.setHasStarted(false);
+    this.hasStarted = false;
+    this.teamSelectHappening = false;
+    this.voteHappening = false;
+    this.missionHappening = false;
     this.numGames += 1;
     this.curMission = 1;
-    this.curMissionVoteDisapproves = 0;
-    this.missionResultTrack = [
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None, 
-      MissionResult.None
-    ];
-    this.missionHistory = [[],[],[],[],[]];
 
-    for (const i in players) {
-      if (player.getIsDisconnected()) {
-        this.players.splice(i, 1);
-      }
-    }
-
-    for (const player of players) { // connected players
-      player.setTeam(Team.Unknown);
+    // reset players status, but leave teams to view
+    for (const player of this.players) {
       player.setIsLeader(false);
       player.setOnMission(false);
     }
-
-    this.updateSeats(io);
-  
+    this.updateSeats(io, true); // reveal all true
     io.to(this.roomCode).emit("set_game_end", { 
       playerRevealArr: this.revealPlayerArr, 
       endMsg: "Game Over: " + message, 
+      numGames: this.numGames,
+      curMissionVoteDisapproves: this.curMissionVoteDisapproves,
+      missionResultTrack: this.missionResultTrack,
+      missionHistory: this.missionHistory
     });
 
     this.revealPlayerArr = [];

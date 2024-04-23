@@ -98,7 +98,7 @@ const newPlayer = (id, username, isAdmin) => {
 
 io.on("connection", (socket) => {
   /* ===== EMITS ===== */
-  io.emit("initial_ping", io.engine.clientsCount);
+  io.emit("server_ping", io.engine.clientsCount);
   
   const sendInitialInfo = (game, msg) => {
     game.sendGameSettingsChanges(io);
@@ -379,6 +379,10 @@ io.on("connection", (socket) => {
     games.get(roomCode)?.startGame(io);
   });
 
+  socket.on("admin_end_game", (roomCode) => {
+    games.get(roomCode)?.endGame(io, true);
+  });
+
   socket.on("team_submitted_for_vote", (info) => {
     const game = games.get(info.roomCode);
     game.handleVote(io, info.selectedPlayers);
@@ -396,7 +400,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("request_seats", (username, roomCode) => {
-    games.get(roomCode).updateSeats(io, username, socket);
+    games.get(roomCode).updateSeats(io, false, username, socket);
   });
 });
 
