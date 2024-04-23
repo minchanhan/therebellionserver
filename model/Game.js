@@ -294,6 +294,13 @@ class Game {
         if (timerSeconds > 0) {
           timerSeconds = timerSeconds - 1;
         } else {
+          this.curMissionVoteDisapproves += 1;
+          if (this.curMissionVoteDisapproves > 4) {
+            this.endGame(io, false, false);
+            clearInterval(interval);
+            return;
+          }
+  
           this.handleTeamSelect(io, this.changeAndGetNewLeader().getUsername());
           clearInterval(interval);
         }
