@@ -346,8 +346,8 @@ class Game {
     }
   };
 
-  updateRoomAdmin(io, timestamp, newAdminUsername="", manualTransfer=false) {
-    const newAdmin = manualTransfer ? this.getPlayerByUsername(newAdminUsername) 
+  updateRoomAdmin(io, timestamp, newAdminUsername="") {
+    const newAdmin = newAdminUsername !== "" ? this.getPlayerByUsername(newAdminUsername) 
                     : this.changeAndGetNewAdmin();
     newAdmin.setIsAdmin(true);
     io.to(newAdmin.getId()).emit("is_admin_update", true);
@@ -564,8 +564,6 @@ class Game {
                     !disconnect ? "The Spies Win" : 
                     disconnect ? "Game Aborted Due to User Disconnect >:(" :
                     "Game Over";
-
-    
 
     this.setHasStarted(false);
     this.numGames += 1;

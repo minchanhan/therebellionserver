@@ -158,11 +158,17 @@ io.on("connection", (socket) => {
       const player = game.getPlayerById(socket.id);
 
       if (game.getHasStarted()) {
-        player.setIsDisconnected(true);
+        player.setIsDisconnected(true); // gray player
         io.to(roomCode).emit("request_for_seats");
+        if (player.getIsAdmin()) {
+          game.updateRoomAdmin(io, getTime(), "");
+        }
       } else {
         // remove player on disconnect if game hasn't started yet
         socket.emit("disconnected_player");
+        if (player.getIsAdmin()) {
+          game.updateRoomAdmin(io, getTime(), "");
+        }
         game.removePlayer(player.getUsername());
         socket.leave(roomCode);
         playerRooms.delete(socket.id);
@@ -346,7 +352,7 @@ io.on("connection", (socket) => {
     }
 
     if (msgData.msg.slice(0, 10) === "/makeadmin" && isAdmin) {
-      const newAdminUsername = msgData.msg.slice(7, msgLen).toUpperCase();
+      const newAdminUsername = msgData.msg.slice(11, msgLen).toUpperCase();
       if (newAdminUsername === username) return;
 
       if (!checkNameInGame(newAdminUsername, game.getPlayers().length, game)
@@ -360,7 +366,7 @@ io.on("connection", (socket) => {
         return;
       }
 
-      game.updateRoomAdmin(io, getTime(), newAdminUsername, true);
+      game.updateRoomAdmin(io, getTime(), newAdminUsername);
       return;
     }
 
