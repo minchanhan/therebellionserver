@@ -458,7 +458,7 @@ class Game {
       );
     }
 
-    this.sendGameMasterMsg(io, `${leaderUsername} is selecting team for mission`);
+    this.sendGameMasterMsg(io, `TEAM SELECTION: ${leaderUsername} is selecting team for mission`);
     this.startTimer(io, this.selectionSecs);
   };
 
@@ -470,7 +470,7 @@ class Game {
       player.setOnMission(selectedPlayers.includes(player.getUsername()));
     }
 
-    this.sendGameMasterMsg(io, `Approve or disapprove ${selectedPlayers.join(", ")} for this mission`);
+    this.sendGameMasterMsg(io, `VOTE: Approve or disapprove ${selectedPlayers.join(", ")} for this mission`);
 
     io.to(this.roomCode).emit("vote_happening", {
       selectedPlayers: selectedPlayers
@@ -486,7 +486,7 @@ class Game {
     if ((approvals + disapprovals) >= this.players.length) {
       const voteApproved = (approvals - disapprovals) > 0;
 
-      const voteResultMsg = `${approvals > 0 ? this.curVoteTally[0].join(', ') : "Nobody"} approved the team.
+      const voteResultMsg = `VOTE TALLY: ${approvals > 0 ? this.curVoteTally[0].join(', ') : "Nobody"} approved the team.
       ${disapprovals > 0 ? this.curVoteTally[1].join(', ') : "Nobody"} disapproved the team.`;
       this.sendGameMasterMsg(io, voteResultMsg);
     
@@ -520,7 +520,7 @@ class Game {
     }
 
     const selectedPlayers = this.getCurSelectedPlayers();
-    const startMissionSpeech = `The mission team has been approved,
+    const startMissionSpeech = `MISSION: The team has been approved,
     ${selectedPlayers.slice(0, -1).join(', ')} and ${selectedPlayers.slice(-1)} please
     choose PASS or FAIL. (Rebellion members must pass, spies can choose either).`;
     this.sendGameMasterMsg(io, startMissionSpeech);
@@ -538,7 +538,7 @@ class Game {
       this.setMissionResultTrack(this.curMission, missionResult);
       this.setMissionHistory(this.curMission, this.getCurSelectedPlayers());
 
-      const missionResultMsg = `Mission ${missionResult ? "passed" : "failed"} with ${fails} fails`;
+      const missionResultMsg = `MISSION RESULT: ${missionResult ? "Passed" : "Failed"} with ${fails} fails`;
       this.sendGameMasterMsg(io, missionResultMsg);
 
       if (this.getMissionPasses() === 3) {
@@ -574,6 +574,9 @@ class Game {
     ];
     this.missionHistory = [[],[],[],[],[]];
 
+    this.sendGameMasterMsg(io, `Game has started! Please do not close or navigate away from your tab/window, 
+      you will leave the room and not be able to rejoin.`);
+      
     // start game
     this.setHasStarted(true);
     // randomize teams
